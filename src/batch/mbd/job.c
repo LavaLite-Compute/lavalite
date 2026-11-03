@@ -1232,6 +1232,34 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
 
 }
 
+/* Tell sbd it can forget the finish of job_id: mbd took it, or will
+ * never need it. Only an orphan is not acked, it needs its finish
+ * when the config is fixed. */
+static void job_finish_ack(struct mbd_host *n, int64_t job_id)
+{
+    struct wire_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = job_id;
+    ack.ack_op = BATCH_JOB_FINISH;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_FINISH_ACK;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("job=%ld failed to sign header for host=%s", job_id,
+               n->net.name);
+        return;
+    }
+
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
+        LL_ERR("job=%ld enqueue_payload failed", job_id);
+        return;
+    }
+}
+
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_finish f;
@@ -1245,23 +1273,9 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 
     struct job_data *job = job_find(f.job_id);
     if (job == NULL) {
-        // Distinguish missing from duplicate for code and logical clarity
         LL_ERR("job=%ld not found from=%s", f.job_id,
                chan_addr_str(n->sbd_chan));
-        struct wire_job_ack ack;
-        memset(&ack, 0, sizeof(ack));
-        ack.job_id = f.job_id;
-        ack.ack_op = BATCH_JOB_FINISH;
-        struct protocol_header hdr;
-        init_protocol_header(&hdr);
-        hdr.operation = BATCH_JOB_FINISH_ACK;
-        hdr.status = MBD_OK;
-        if (auth_sign_header(&hdr) < 0) {
-            LL_ERR("job=%ld failed to sign header", f.job_id);
-            return;
-        }
-        enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack);
+        job_finish_ack(n, f.job_id);
         return;
     }
 
@@ -1273,10 +1287,34 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         return;
     }
 
-    if (strcmp(n->net.name, job->run_hosts[0]->net.name) != 0) {
-        LL_WARNINGX("job=%ld finish reported by host=%s but dispatched to "
-                   " host=%s — ignoring",
-                   job->job_id, n->net.name, job->run_hosts[0]->net.name);
+    /* the job must have been dispatched to this host, otherwise the
+     * finish is not for this job, as when its id was reused after the
+     * mbd state was removed: ignored and acked, mbd never needs it */
+    if (job->state == JOB_PENDING) {
+        LL_ERRX("job=%ld is pending, finish from sbd=%s ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
+        return;
+    }
+
+    if (job->state == JOB_HELD) {
+        LL_ERRX("job=%ld is held, finish from sbd=%s ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
+        return;
+    }
+
+    if (job->run_nhosts == 0) {
+        LL_ERRX("job=%ld was never dispatched, finish from sbd=%s ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
+        return;
+    }
+
+    if (job->run_hosts[0] != n) {
+        LL_ERRX("job=%ld was not dispatched to sbd=%s, finish ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
         return;
     }
 
@@ -1341,27 +1379,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
             service_instance_finish(job->svc_inst);
     }
 
-    struct wire_job_ack ack;
-    memset(&ack, 0, sizeof(ack));
-    ack.job_id = f.job_id;
-    ack.ack_op = BATCH_JOB_FINISH;
-
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_FINISH_ACK;
-    hdr.status = MBD_OK;
-
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
-               n->net.name);
-        return;
-    }
-
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack) < 0) {
-        LL_ERR("job=%ld enqueue_payload failed", f.job_id);
-        return;
-    }
+    job_finish_ack(n, f.job_id);
 }
 
 char *job_state_str(int state)

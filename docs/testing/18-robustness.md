@@ -530,6 +530,30 @@ A job on several hosts holds its GPUs on every host. Before the fix
 only the first host marked them: at the end the job freed a GPU of
 another job on the other host, and two jobs could get the same GPU.
 
+### TEST-265: Finish for a reused job id
+
+Automated: `t_finish_reused_id`.
+
+#### Commands
+
+Run `sleep 8` on worker1, stop `mbd`, remove `var/state/mbd`, start
+`mbd`, submit a held array from 1 up to the id of the running job.
+
+#### Expected Result
+
+- The array element with that id stays `HELD`, `mbd` alive.
+- When the sleep ends, the `mbd` log has `is held, finish from
+  sbd=worker1 ignored`, once: `mbd` acks the finish and `sbd` does
+  not send it again.
+
+#### Pass Criteria
+
+A finish from `sbd` for a job never dispatched to it does not crash
+`mbd`. Before the fix `mbd_job_finish()` read the run host of a job
+that had none and died, again at every restart, as `sbd` resends the
+finish. A finish is acked unless the job is an orphan: only then does
+`mbd` need it later.
+
 ---
 
 ## Global

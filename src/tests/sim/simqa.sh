@@ -4,7 +4,7 @@
 # Robustness scenarios on a one box sim cluster: pid timeout, host
 # taint, orphan jobs, bkill -s 9, finished job retention, a suspended
 # job across mbd restarts, gpus of a multi-host job, a removed
-# manifest.
+# manifest, a finish for a reused job id.
 #
 # The script builds its own config in a scratch directory, starts mbd
 # as SIMQA_USER and two sim sbds, worker1 and worker2, cloned from the
@@ -556,6 +556,33 @@ t_manifest_removed()
         pass $T || fail $T "job=$j dead=$dead, see $QA"
 }
 
+t_finish_reused_id()
+{
+    local T=finish_reused_id
+    # a job runs on worker1 while the mbd state is removed: the new mbd
+    # gives its id to a held job, the finish sbd sends later is not for
+    # it and must not crash mbd
+    local j=$(submit -m worker1 sleep 8)
+    wait_state $j RUN 20 || { fail $T "no RUN"; return; }
+    mbd_stop
+    rm -rf $QA/state/mbd
+    mbd_start
+    wait_host worker1 ok 20
+    # held array from 1: its last element gets the id of the running job
+    local a=$(submit -H --array 1-$j true)
+    [ "$a" = 1 ] || { fail $T "array id $a, ids not restarted"; return; }
+    sleep 12
+    local c1=$(mlog | grep -c "is held, finish from sbd=worker1 ignored")
+    # acked: sbd does not send it again
+    sleep 20
+    local c2=$(mlog | grep -c "is held, finish from sbd=worker1 ignored")
+    kill -0 "$(cat $QA/mbd.pid)" 2>/dev/null &&
+    [ "$(jstate $j)" = HELD ] &&
+    [ "$c1" -ge 1 ] && [ "$c1" = "$c2" ] &&
+        pass $T || fail $T "mbd died or finish not acked $c1 $c2, see $QA"
+    as_user bkill $a >/dev/null 2>&1
+}
+
 t_counters()
 {
     local T=counters_and_alive
@@ -603,7 +630,7 @@ for t in ${SIMQA_ONLY:-t_kill9_running t_kill9_disp t_kill9_all \
          t_pid_timeout t_pid_timeout_mbd_restart t_kill9_disconnected \
          t_taint t_orphans t_token_pool_orphan t_replay_machines_tokens \
          t_retention t_suspend_restart t_gpu_multihost t_manifest_removed \
-         t_counters}; do
+         t_finish_reused_id t_counters}; do
     settle
     $t
 done
