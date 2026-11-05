@@ -114,7 +114,7 @@ bsub sleep 5
 Example:
 
 ```text
-Job <123> is submitted to queue <cpu>.
+Job <123> is submitted to the default queue.
 ```
 
 ### Pass Criteria

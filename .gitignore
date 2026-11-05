@@ -39,10 +39,7 @@ config.sub
 *.libs/
 
 # Ignore commands
-lshosts
-lsid
-lsload
-lsclusterinfo
+netns
 bhosts
 bhist
 bjobs
@@ -53,21 +50,20 @@ bsub
 btokens
 bmove
 bpriority
+bservice
 read_shared
 stdout.*
 stderr.*
 hog
 # Ignore binary daemons
 .libs/*
-src/base/lim/lim
-src/batch/compactor/mbd_compact
 # Ignore cscope
 cscope*
 src/lsf/pylib/__pycache__/
-src/lsbatch/compactor/mbd_compact
 docs/man/man1/*.1
 docs/man/man5/*.5
 docs/man/man7/*.7
 docs/man/man8/*.8
 src/batch/mbd/mbd
 src/batch/sbd/sbd
+src/batch/service_proxy/spd

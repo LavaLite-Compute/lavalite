@@ -23,12 +23,18 @@ static void job_data_to_wire(const struct job_data *job,
     w->pid = job->pid;
     w->state = job->state;
     /*
+     * ORPHAN is a reporting state too: the job keeps its real state
+     * underneath, frozen on orphan_jobs_list, see replay_mark_orphans().
+     */
+    if (job->list_id == JOB_LIST_ORPHAN)
+        w->state = JOB_ORPHAN;
+    /*
      * UNKNOWN is a public/reporting state. Internally the job keeps its last
      * lifecycle state. If the execution host is disconnected, clients cannot
      * know whether the process is still running, suspended, or gone.
      */
-    if ((w->state == JOB_RUNNING || w->state == JOB_SUSPENDED) &&
-        job->run_hosts[0]->sbd_chan < 0)
+    if ((w->state == JOB_RUNNING || w->state == JOB_SUSPENDED)
+        && job->run_hosts[0]->sbd_chan < 0)
         w->state = JOB_UNKNOWN;
     w->exit_status = job->exit_status;
     w->priority = job->priority;
@@ -138,7 +144,8 @@ static int jobs_info_ref(int chan_id, const struct protocol_header *hdr,
 
     int ntotal = ll_list_count(&pend_jobs_list) +
                  ll_list_count(&run_jobs_list) +
-                 ll_list_count(&finish_jobs_list);
+                 ll_list_count(&finish_jobs_list) +
+                 ll_list_count(&orphan_jobs_list);
 
     if (ntotal == 0)
         ntotal = 1;
@@ -197,9 +204,8 @@ static int jobs_info_ref(int chan_id, const struct protocol_header *hdr,
 
     struct wire_job_info_array reply = {.njobs = n, .jobs = jobs};
 
-    size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_job_info_array, &reply);
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
@@ -231,7 +237,8 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
 
     int ntotal = ll_list_count(&pend_jobs_list) +
                  ll_list_count(&run_jobs_list) +
-                 ll_list_count(&finish_jobs_list);
+                 ll_list_count(&finish_jobs_list) +
+                 ll_list_count(&orphan_jobs_list);
 
     struct wire_job_info *jobs = NULL;
 
@@ -242,15 +249,20 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
             return -1;
         }
 
+        /* orphans are live jobs and an alarm: always listed */
         if (req->flags == 0) {
             n = collect_list(&pend_jobs_list, jobs, n, uid, all);
             n = collect_list(&run_jobs_list, jobs, n, uid, all);
+            n = collect_list(&orphan_jobs_list, jobs, n, uid, all);
         } else {
             if (req->flags & LLB_JOB_PEND)
                 n = collect_list(&pend_jobs_list, jobs, n, uid, all);
 
             if (req->flags & LLB_JOB_RUN)
                 n = collect_list(&run_jobs_list, jobs, n, uid, all);
+
+            if (req->flags & (LLB_JOB_PEND | LLB_JOB_RUN))
+                n = collect_list(&orphan_jobs_list, jobs, n, uid, all);
 
             if (req->flags & LLB_JOB_DONE)
                 n = collect_list(&finish_jobs_list, jobs, n, uid, all);
@@ -259,9 +271,8 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
 
     struct wire_job_info_array reply = {.njobs = n, .jobs = jobs};
 
-    size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_job_info_array, &reply);
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
@@ -321,7 +332,6 @@ int queues_info(XDR *xdrs, int chan_id)
     }
 
     int i = 0;
-    size_t siz = 0;
     for (struct ll_list_entry *e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *) e;
 
@@ -346,11 +356,6 @@ int queues_info(XDR *xdrs, int chan_id)
                    queues[i].num_hosts, queues[i].num_users);
             goto fail;
         }
-        for (int j = 0; j < queues[i].num_hosts; j++)
-            siz += strlen(queues[i].hosts[j]) + 4;
-        for (int j = 0; j < queues[i].num_users; j++)
-            siz += strlen(queues[i].users[j]) + 4;
-        siz += 8; /* num_hosts + num_users int32 */
         i++;
     }
 
@@ -358,21 +363,20 @@ int queues_info(XDR *xdrs, int chan_id)
     reply.nqueues = nqueues;
     reply.queues = queues;
 
-    siz = siz + sizeof(struct wire_queue_info) * nqueues +
-          sizeof(struct wire_queue_info_array) + PACKET_HEADER_SIZE +
-          LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_queue_info_array, &reply);
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_QUEUE_INFO_ACK;
     hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_queue_info_array) <
-        0) {
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        xdr_wire_queue_info_array) < 0) {
         LL_ERR("queue_info: enqueue_payload failed");
-        free(queues);
-        return -1;
+        goto fail;
     }
+
     for (int j = 0; j < nqueues; j++) {
         free(queues[j].hosts);
         free(queues[j].users);
@@ -381,8 +385,10 @@ int queues_info(XDR *xdrs, int chan_id)
     return 0;
 
 fail:
-    for (int j = 0; j <= i; j++)
-        free(queues[j].hosts), free(queues[j].users);
+    for (int j = 0; j < nqueues; j++) {
+        free(queues[j].hosts);
+        free(queues[j].users);
+    }
     free(queues);
     return -1;
 }
@@ -416,14 +422,13 @@ int host_group_info(XDR *xdrs, int chan_id)
     reply.ngroups = ngroups;
     reply.groups = groups;
 
-    size_t siz = sizeof(struct wire_group_info) * ngroups +
-                 sizeof(struct wire_group_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
-
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_GROUP_INFO_ACK;
     hdr.status = MBD_OK;
+
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_group_info_array, &reply);
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_group_info_array) <
         0) {
@@ -481,9 +486,8 @@ int hosts_info(XDR *xdrs, int chan_id)
     reply.nhosts = nhosts;
     reply.hosts = hosts;
 
-    size_t siz = sizeof(struct wire_host_info) * nhosts +
-                 sizeof(struct wire_host_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_host_info_array, &reply);
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -535,13 +539,19 @@ int tokens_info(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_TOKEN_INFO_ACK;
     hdr.status = MBD_OK;
 
-    size_t bufsz =
-        PACKET_HEADER_SIZE + n * sizeof(struct wire_token_info) + LL_BUFSIZ_256;
+    size_t bufsz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_token_info_array, &w);
 
-    enqueue_payload(chan_id, &hdr, &w, bufsz,
-                    (bool_t(*)()) xdr_wire_token_info_array);
+    int rc = enqueue_payload(chan_id, &hdr, &w, bufsz,
+                             (bool_t(*)()) xdr_wire_token_info_array);
+    if (rc < 0) {
+        LL_ERRX("enqueue_payload sized=%zu failed", bufsz);
+        free(w.tokens);
+        return -1;
+    }
 
     free(w.tokens);
+
     return 0;
 }
 /* -----------------------------------------------------------
@@ -610,4 +620,96 @@ int host_admin(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
             req.op == HOST_CLOSED ? "closed" : "open", hdr->uid);
 
     return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, 0);
+}
+
+int service_start(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    struct wire_svc_start req;
+
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_svc_start(xdrs, &req)) {
+        LL_ERR("service_start: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_SERVICE_START_ACK, EPROTO);
+    }
+
+    int err = service_start_instance(hdr, chan_id, &req);
+    if (err != 0) {
+        LL_INFO("service_start: name=%s uid=%u failed err=%d",
+                req.name, hdr->uid, err);
+        return enqueue_header(chan_id, BATCH_SERVICE_START_ACK, err);
+    }
+
+    return 0;
+}
+
+int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    (void) xdrs;
+
+    int all = is_manager(hdr->uid);
+    uid_t uid = hdr->uid;
+
+    struct wire_svc_info *svc = NULL;
+    int n = service_collect_info(uid, all, &svc);
+    if (n < 0) {
+        LL_ERR("service_collect_info failed");
+        return enqueue_header(chan_id, BATCH_SERVICE_INFO_ACK, errno);
+    }
+
+    struct wire_svc_info_array reply;
+    reply.nsvc = n;
+    reply.svc = svc;
+
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_SERVICE_INFO_ACK;
+    rep_hdr.status = MBD_OK;
+
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_svc_info_array, &reply);
+
+    if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                        xdr_wire_svc_info_array) < 0) {
+        LL_ERR("enqueue_payload failed");
+        for (int i = 0; i < n; i++)
+            free(svc[i].instances);
+        free(svc);
+        return -1;
+    }
+
+    for (int i = 0; i < n; i++)
+        free(svc[i].instances);
+    free(svc);
+
+    return 0;
+}
+
+int service_delete(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    struct wire_svc_delete req;
+
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_svc_delete(xdrs, &req)) {
+        LL_ERR("xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, EPROTO);
+    }
+
+    LL_INFO("service instance job=%ld endpoint=%s:%d deleted by uid=%u",
+            req.job_id, req.host, req.port, hdr->uid);
+
+    int err = service_delete_instance(hdr->uid, req.job_id, req.host,
+                                      req.port);
+    if (err != 0) {
+        LL_INFO("job=%ld endpoint=%s:%d uid=%u failed err=%d",
+                req.job_id, req.host, req.port, hdr->uid, err);
+        return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, err);
+    }
+
+    int rc = enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, MBD_OK);
+    if (rc != MBD_OK) {
+        LL_ERRX("enqueue_header BATCH_SERVICE_DELETE_ACK failed chan=%d", chan_id);
+        return -1;
+    }
+
+    return 0;
 }

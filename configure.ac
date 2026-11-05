@@ -1,11 +1,11 @@
 # Copyright (C) LavaLite Contributors
 
-AC_INIT([lavalite], [1.1.0], [https://github.com/LavaLite-Compute/lavalite])
+AC_INIT([lavalite], [2.0.0], [https://github.com/LavaLite-Compute/lavalite])
 dnl Modern large/posix feature defines (instead of forcing _GNU_SOURCE)
 AC_USE_SYSTEM_EXTENSIONS
 
 AC_CONFIG_HEADERS([config.h])
-AC_PREFIX_DEFAULT([/opt/lavalite-1.1.0])
+AC_PREFIX_DEFAULT([/opt/lavalite-2.0.0])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -16,6 +16,7 @@ LT_INIT([disable-shared])
 
 dnl Compilers / tools
 AC_PROG_CC
+CFLAGS="$CFLAGS -std=gnu17"
 AC_PROG_INSTALL
 
 dnl Check for OpenSSL via pkg-config
@@ -24,8 +25,7 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
 dnl Project identity versioning
-AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 1.1.0"], [Human-readable LavaLite version])
-AC_DEFINE([LAVALITE_VERSION_HEX], [0x011000], [LavaLite version encoded as 0xMMmmpp])
+AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 2.0.0"], [Human-readable LavaLite version])
 
 dnl ---- Dependencies ----
 
@@ -35,6 +35,11 @@ PKG_CHECK_MODULES([TIRPC], [libtirpc],
    LIBS="$LIBS $TIRPC_LIBS"],
   [AC_MSG_ERROR([libtirpc not found — required for XDR support])])
 
+AC_PATH_PROG([PANDOC], [pandoc])
+if test -z "$PANDOC"; then
+    AC_MSG_ERROR([pandoc not found, needed to build the man pages])
+fi
+
 dnl Generate Makefiles
 AC_CONFIG_FILES([
   docs/Makefile
@@ -42,6 +47,8 @@ AC_CONFIG_FILES([
   Makefile
   include/Makefile
   src/Makefile
+  src/tests/Makefile
+  src/tests/netns/Makefile
   src/base/Makefile
   src/base/lib/Makefile
   src/batch/Makefile

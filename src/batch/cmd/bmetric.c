@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "bmetric add: requires <metric> <value> <host>\n");
             return 1;
         }
-        /* TODO: send metric to LIM/MBD */
+        /* TODO: send metric to MBD */
         printf("add metric=%s value=%s host=%s\n", argv[1], argv[2], argv[3]);
         return 0;
     }

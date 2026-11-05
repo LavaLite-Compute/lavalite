@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+#
+# chaos - LavaLite chaos, run by the administrator or root.
+#
+# It submits nothing: jload and sload, run by ordinary users in their
+# own windows, keep the cluster busy. For --seconds chaos picks at
+# random, each at its own interval:
+#
+#   kill    SIGKILL every mbd or sbd process on a host, systemd brings
+#           them back (Restart=on-failure)
+#   freeze  SIGSTOP one sbd on a host for a while, then SIGCONT: past
+#           20 seconds mbd's pid timeout disconnects it
+#   stop    systemctl stop mbd or sbd on a host for a while, then start
+#
+# Every --core-every seconds, and at the end, it looks for core files
+# made since it started: in the state tree of every host, where the
+# daemons run when kernel.core_pattern writes to the cwd, and in
+# coredumpctl. chaos only sends SIGKILL, SIGSTOP and SIGCONT, none of
+# them dumps core: every core is a crash.
+#
+# At the end it thaws and starts what it left down, waits until every
+# daemon is up, and checks mbd: no "Assertion" in its journal, no new
+# "bad counters" in its log (set LL_ASSERT_COUNTERS=1 for the run).
+# Exits 0 when all is well.
+#
+# Every action is logged with a timestamp, to match a jload or sload
+# failure to what chaos did at that moment. Remote hosts are reached
+# with ssh, commands run with sudo unless chaos runs as root.
+#
+#  Copyright (C) LavaLite Contributors
+#  GPL v2
+#
+
+import argparse
+import os
+import random
+import socket
+import subprocess
+import sys
+import time
+
+TIMEOUT = 10.0  # seconds for any single command
+UNIT = {"mbd": "lavalite-mbd", "sbd": "lavalite-sbd"}
+
+
+def log(msg):
+    sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} chaos: {msg}\n")
+    sys.stdout.flush()
+
+
+def run(cmd, timeout=TIMEOUT):
+    """Run cmd, never raise, rc 124 on timeout like timeout(1)."""
+    try:
+        return subprocess.run(cmd, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, text=True,
+                              timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
+    except OSError as e:
+        return subprocess.CompletedProcess(cmd, 127, "", str(e))
+
+
+def on(host, cmd, root=True):
+    """Run cmd on host: locally or over ssh, with sudo when needed."""
+    if root and os.geteuid() != 0:
+        cmd = ["sudo"] + cmd
+    local = ("localhost", socket.gethostname(),
+             socket.gethostname().split(".")[0])
+    if host not in local:
+        cmd = ["ssh", host] + cmd
+    return run(cmd)
+
+
+def read_hosts(path):
+    """'<kind> <host>' lines -> {"mbd": [...], "sbd": [...]}."""
+    hosts = {}
+    with open(path) as f:
+        for line in f:
+            parts = line.split()
+            if not parts or parts[0].startswith("#"):
+                continue
+            if len(parts) != 2 or parts[0] not in UNIT:
+                log(f"hosts file: bad line {line.strip()!r}, skipped")
+                continue
+            hosts.setdefault(parts[0], []).append(parts[1])
+    return hosts
+
+
+def ll_conf(key):
+    """Value of key in $LL_CONF_DIR/ll.conf, None if missing."""
+    path = os.path.join(os.environ["LL_CONF_DIR"], "ll.conf")
+    with open(path) as f:
+        for line in f:
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, v = line.split("=", 1)
+                if k.strip() == key:
+                    return v.strip()
+    return None
+
+
+def sbin_dir():
+    """The sbin of the tree LL_CONF_DIR belongs to."""
+    return os.path.normpath(os.path.join(os.environ["LL_CONF_DIR"], "..",
+                                         "sbin"))
+
+
+def pattern(kind):
+    """pgrep -f pattern of a daemon, sims included for sbd."""
+    return f"^{sbin_dir()}/{kind}"
+
+
+def pids(host, kind):
+    """Pids of kind on host, empty list if none."""
+    cp = on(host, ["pgrep", "-f", pattern(kind)], root=False)
+    return [p for p in cp.stdout.split() if p.isdigit()]
+
+
+def count_in_log(host, logs, text):
+    """Lines of the log files logs on host containing text."""
+    cp = on(host, ["sh", "-c", f"cat {logs} 2>/dev/null | grep -c '{text}'"])
+    v = cp.stdout.strip()
+    return int(v) if v.isdigit() else -1
+
+
+def new_cores(hosts, state_dir, since, seen):
+    """
+    Cores made since the epoch since on hosts, not in seen yet: files
+    core* in the state tree and coredumpctl entries of our daemons.
+    Each is added to seen and returned once.
+    """
+    sbin = sbin_dir()
+    found = []
+    for host in hosts:
+        cp = on(host, ["find", state_dir, "-maxdepth", "3", "-name",
+                       "core*", "-newermt", f"@{since}"])
+        for path in cp.stdout.split():
+            # a shared state tree shows the same file on every host
+            if path not in seen:
+                seen.add(path)
+                found.append(f"{host}:{path}")
+        cp = on(host, ["coredumpctl", "list", "--no-legend", "--no-pager",
+                       "--since", f"@{since}"])
+        for line in cp.stdout.splitlines():
+            key = f"{host}:{line.strip()}"
+            if sbin in line and key not in seen:
+                seen.add(key)
+                found.append(key)
+    return found
+
+
+def main():
+    if not os.environ.get("LL_CONF_DIR"):
+        print("chaos: LL_CONF_DIR must be defined", file=sys.stderr)
+        sys.exit(1)
+
+    ap = argparse.ArgumentParser(
+        prog="chaos", description="Kill, freeze and stop LavaLite daemons.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument("--hosts-file", required=True,
+                    help="'<kind> <host>' lines, kind mbd or sbd")
+    ap.add_argument("--seconds", type=int, default=600,
+                    help="duration of the chaos loop")
+    ap.add_argument("--kinds", default="mbd,sbd",
+                    help="daemons chaos may touch")
+    ap.add_argument("--kill-every", type=int, default=60,
+                    help="SIGKILL a daemon every N seconds, 0 off")
+    ap.add_argument("--freeze-every", type=int, default=90,
+                    help="SIGSTOP an sbd every N seconds, 0 off")
+    ap.add_argument("--freeze-secs", type=int, default=40,
+                    help="freeze for 5 to N seconds")
+    ap.add_argument("--stop-every", type=int, default=0,
+                    help="systemctl stop a daemon every N seconds, 0 off")
+    ap.add_argument("--stop-secs", type=int, default=60,
+                    help="keep it stopped for 5 to N seconds")
+    ap.add_argument("--core-every", type=int, default=60,
+                    help="look for new core files every N seconds, 0 only "
+                         "at the end")
+    ap.add_argument("--settle", type=int, default=120,
+                    help="seconds for every daemon to be up at the end")
+    args = ap.parse_args()
+
+    hosts = read_hosts(args.hosts_file)
+    kinds = [k for k in args.kinds.split(",") if k in hosts]
+    if not kinds:
+        print("chaos: no host for --kinds in the hosts file", file=sys.stderr)
+        sys.exit(1)
+    if "mbd" not in hosts:
+        print("chaos: the hosts file needs the mbd host", file=sys.stderr)
+        sys.exit(1)
+    mbd_host = hosts["mbd"][0]
+    # mbd.log.<gethostname of the mbd host>
+    mbd_log = os.path.join(ll_conf("LL_LOG_DIR") or "/nonexistent",
+                           "mbd.log.*")
+
+    counters0 = count_in_log(mbd_host, mbd_log, "bad counters")
+    since = int(time.time())
+    state_dir = ll_conf("LL_STATE_DIR") or "/nonexistent"
+    all_hosts = sorted({h for k in hosts for h in hosts[k]})
+    seen = set()
+    ncores = 0
+    log(f"start mbd={mbd_host} log={mbd_log} "
+        f"state={state_dir}")
+
+    frozen = {}      # (host, pid) -> thaw time
+    stopped = {}     # (host, kind) -> start time
+    nkill = nkill_mbd = nfreeze = nstop = 0
+
+    t0 = time.monotonic()
+    t_end = t0 + args.seconds
+    next_kill = t0 + args.kill_every
+    next_freeze = t0 + args.freeze_every
+    next_stop = t0 + args.stop_every
+    next_core = t0 + args.core_every
+
+    while time.monotonic() < t_end:
+        now = time.monotonic()
+
+        # bring back what is due first
+        for (host, pid), t in list(frozen.items()):
+            if now >= t:
+                on(host, ["kill", "-CONT", pid])
+                log(f"thaw sbd pid={pid} host={host}")
+                del frozen[(host, pid)]
+        for (host, kind), t in list(stopped.items()):
+            if now >= t:
+                on(host, ["systemctl", "start", UNIT[kind]])
+                log(f"start {kind} host={host}")
+                del stopped[(host, kind)]
+
+        busy = {h for h, _ in frozen} | {h for h, _ in stopped}
+
+        if args.kill_every > 0 and now >= next_kill:
+            kind = random.choice(kinds)
+            host = random.choice(hosts[kind])
+            if host in busy or not pids(host, kind):
+                log(f"skip kill {kind} host={host}")
+            else:
+                cp = on(host, ["pkill", "-KILL", "-f", pattern(kind)])
+                log(f"kill {kind} host={host} rc={cp.returncode}")
+                nkill += 1
+                if kind == "mbd" and host == mbd_host:
+                    nkill_mbd += 1
+            next_kill += args.kill_every
+
+        if (args.freeze_every > 0 and "sbd" in kinds
+                and now >= next_freeze):
+            host = random.choice(hosts["sbd"])
+            p = pids(host, "sbd")
+            if host in busy or not p:
+                log(f"skip freeze sbd host={host}")
+            else:
+                pid = random.choice(p)
+                secs = random.randint(5, max(5, args.freeze_secs))
+                on(host, ["kill", "-STOP", pid])
+                frozen[(host, pid)] = now + secs
+                log(f"freeze sbd pid={pid} host={host} for {secs}s")
+                nfreeze += 1
+            next_freeze += args.freeze_every
+
+        if args.stop_every > 0 and now >= next_stop:
+            kind = random.choice(kinds)
+            host = random.choice(hosts[kind])
+            if host in busy:
+                log(f"skip stop {kind} host={host}")
+            else:
+                secs = random.randint(5, max(5, args.stop_secs))
+                on(host, ["systemctl", "stop", UNIT[kind]])
+                stopped[(host, kind)] = now + secs
+                log(f"stop {kind} host={host} for {secs}s")
+                nstop += 1
+            next_stop += args.stop_every
+
+        if args.core_every > 0 and now >= next_core:
+            for core in new_cores(all_hosts, state_dir, since, seen):
+                log(f"FAIL core {core}")
+                ncores += 1
+            next_core += args.core_every
+
+        time.sleep(0.2)
+
+    # leave nothing frozen or stopped
+    for host, pid in frozen:
+        on(host, ["kill", "-CONT", pid])
+        log(f"thaw sbd pid={pid} host={host}")
+    for host, kind in stopped:
+        on(host, ["systemctl", "start", UNIT[kind]])
+        log(f"start {kind} host={host}")
+
+    ok = True
+    down = [(k, h) for k in kinds for h in hosts[k]]
+    deadline = time.monotonic() + args.settle
+    while down and time.monotonic() < deadline:
+        down = [(k, h) for k, h in down if not pids(h, k)]
+        if down:
+            time.sleep(2)
+    for kind, host in down:
+        log(f"FAIL {kind} not running on {host}")
+        ok = False
+
+    for core in new_cores(all_hosts, state_dir, since, seen):
+        log(f"FAIL core {core}")
+        ncores += 1
+    if ncores > 0:
+        ok = False
+
+    cp = on(mbd_host, ["journalctl", "-u", UNIT["mbd"], "--since",
+                       f"@{since}", "--no-pager"])
+    asserts = [l for l in cp.stdout.splitlines() if "Assertion" in l]
+    for line in asserts:
+        log(f"FAIL {line}")
+    if asserts:
+        ok = False
+
+    counters = count_in_log(mbd_host, mbd_log, "bad counters")
+    if counters > counters0 >= 0:
+        log(f"FAIL {counters - counters0} new 'bad counters' in {mbd_log}")
+        ok = False
+
+    log(f"done seconds={args.seconds} kill={nkill} kill_mbd={nkill_mbd} "
+        f"freeze={nfreeze} stop={nstop} cores={ncores} "
+        f"result={'ok' if ok else 'FAIL'}")
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

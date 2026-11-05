@@ -18,8 +18,9 @@ enum job_state {
     JOB_SUSPENDED,   /* execution suspended on SBD */
     JOB_EXITED,      /* finished with non-zero exit status */
     JOB_DONE,        /* finished successfully */
-    JOB_ORPHAN,      /* known to MBD, rejected as unknown by SBD */
-    JOB_BROKEN,      /* replay failed, runtime state could not be rebuilt */
+    JOB_ORPHAN,      /* reporting state: the job references a queue,
+                      * service, host or token pool missing from the
+                      * config, it is frozen until the config is fixed */
     JOB_UNKNOWN,     /* SBD unavailable, actual state cannot be determined */
 };
 
@@ -28,7 +29,7 @@ enum job_state {
 #define JOB_SUCCESS 0
 #define JOB_FAILURE 1
 enum pend_reason {
-    PEND_NONE = 0,
+    PEND_NONE,
     PEND_JOB_NOT_READY,
     PEND_QUEUE_CLOSED,
     PEND_TOKENS,
@@ -41,6 +42,7 @@ enum pend_reason {
     PEND_HOST_EXCLUSIVE,
     PEND_HOST_OVERFLOW,
     PEND_DEPEND,
+    PEND_QUEUE_JOB_LIMIT,
 };
 
 // Pending messages table
@@ -55,6 +57,8 @@ enum host_stat {
 };
 
 #define HOST_CLOSED 0x01 /* admin disabled/locked — orthogonal to state */
+#define HOST_TAINTED 0x04 /* sbd rejected a job, no dispatch for TAINT_TIME,
+                           * cleared by time, sbd register or disconnect */
 
 /* -----------------------------------------------------------------------
  * Structs
@@ -68,6 +72,8 @@ enum host_stat {
 #define JOB_FLAG_EXCLUSIVE 0x01
 #define JOB_FLAG_HOLD 0x02
 #define JOB_FLAG_ARRAY 0x04
+#define JOB_FLAG_SERVICE 0x08
+#define JOB_FLAG_RELOCATABLE 0x10 /* may be redispatched after it finishes */
 
 struct job_submit {
     char *name;          /* --name        */
@@ -89,6 +95,7 @@ struct job_submit {
     char *tokenpool;     /* --pool name=N[,name=N]  */
     time_t begin_time;   /* --begin       */
     time_t term_time;    /* --terminate   */
+    int32_t run_limit;   /* --time, seconds, 0 = none */
     uint32_t flags;      /* JOB_FLAG_*    */
     int32_t array_start; /* --array START-END[:STRIDE] */
     int32_t array_end;
@@ -171,7 +178,7 @@ struct queue_info {
     int32_t num_users;
     int32_t status;         /* QUEUE_OPEN | QUEUE_CLOSED */
     int32_t priority;       /* scheduling priority, higher wins */
-    int32_t max_jobs;       /* max concurrent jobs, 0 = unlimited */
+    int32_t max_jobs;       /* max concurrent jobs, -1 = unlimited */
     int32_t num_jobs;       /* total: pend + held + run + susp */
     int32_t num_pend;       /* pending jobs */
     int32_t num_held;       /* held jobs */
@@ -199,6 +206,41 @@ struct token_pool_info {
     int32_t used;  /* total - free */
 };
 
+/* -----------------------------------------------------------------------
+ * Service status
+ * ----------------------------------------------------------------------- */
+enum svc_status {
+    SVC_PENDING,
+    SVC_RUNNING,
+    SVC_FINISH,
+    SVC_DISP, /* reporting only: PENDING with the job dispatched, no pid */
+};
+
+struct svc_info {
+    char *name;
+    char *queue;
+    int32_t restart_never; /* 0 RESTART=always, 1 RESTART=never */
+    int32_t port;          /* PORT */
+    int32_t run_limit;     /* RUNLIMIT seconds, 0 = none */
+    char *token_env;       /* TOKEN_ENV, NULL if not set */
+    char *command;
+    int32_t num_run;       /* instance counts, all users */
+    int32_t num_pend;
+    int32_t num_finish;
+    uint32_t ninstances;
+    struct svc_instance_info *instances;
+};
+
+struct svc_instance_info {
+    char *service;     /* service definition name (llb.services SERVICE_NAME) */
+    uid_t uid;
+    int32_t port;   /* external port */
+    char *run_host; /* backing job's execution host, NULL if not running yet */
+    int64_t job_id; /* backing job id */
+    int32_t status;
+    char *token;    /* NULL unless the caller owns the instance */
+};
+
 /* llb_hist_info flags
  */
 #define LLB_HIST_ALL 0x0001
@@ -209,13 +251,14 @@ struct token_pool_info {
  * to type; unused fields are zero/NULL.
  */
 struct job_event {
-    int32_t type; /* EVENT_JOB_* from log.h         */
+    int32_t type; /* EVENT_JOB_* from log.h */
     time_t event_time;
-    int32_t state;        /* JOB_START, JOB_FINISH          */
-    int32_t exit_status;  /* JOB_FINISH                     */
-    int32_t signal;       /* JOB_SIGNAL                     */
-    pid_t pid;            /* JOB_FORK                       */
-    char *run_hosts;      /* JOB_START                      */
+    int32_t state;        /* JOB_START, JOB_FINISH */
+    int32_t exit_status;  /* JOB_FINISH */
+    int32_t signal;       /* JOB_SIGNAL */
+    pid_t pid;            /* JOB_FORK */
+    int32_t service_port; /* JOB_FORK: 0 for batch jobs */
+    char *run_hosts;      /* JOB_START */
     char *from_queue;     /* JOB_MOVE */
     char *to_queue;       /* JOB_MOVE */
     int32_t old_priority; /* JOB_PRIORITY */
@@ -261,6 +304,7 @@ struct job_hist_info {
     char *tokenpool;            /* --pool                                 */
     time_t begin_time;          /* --begin                                */
     time_t term_time;           /* --terminate                            */
+    int32_t run_limit;          /* --time, seconds                        */
     struct job_res_usage usage; /* from usage sidecar, valid after finish */
     int32_t num_events;
     struct job_event *events;
@@ -274,6 +318,7 @@ struct job_hist_info {
 int32_t llb_submit(const struct job_submit *, int64_t *);
 int32_t llb_parse_array(const char *, int32_t *, int32_t *, int32_t *);
 int32_t llb_parse_dependency(const char *);
+int32_t llb_parse_time_limit(const char *, int32_t *);
 
 // bjobs
 struct job_info *llb_job_info(const struct job_info_req *, int32_t *);
@@ -298,6 +343,13 @@ int32_t llb_signal_job(int64_t, int32_t,
 /* btokens */
 struct token_pool_info *llb_token_info(int32_t *);
 void llb_free_token_info(struct token_pool_info *, int32_t);
+
+// bservice
+int32_t llb_service_start(const char *, int32_t, struct svc_instance_info *);
+struct svc_info *llb_service_info(int32_t *);
+void llb_free_service_info(struct svc_info *, int32_t);
+int32_t llb_service_delete(int64_t, const char *, int32_t);
+const char *llb_svc_status_str(int32_t);
 
 /* admin */
 int32_t llb_queue_admin(const char *, int32_t);

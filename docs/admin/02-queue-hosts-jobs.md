@@ -57,6 +57,7 @@ bqueues --close queue_name
 Closing a queue:
 
 - Prevents new dispatches
+- Still accepts new jobs, they stay pending
 - Does not affect running jobs
 - Does not remove pending jobs
 
@@ -209,6 +210,47 @@ Typical information includes:
 - Queue
 - Execution host(s)
 - Submit time
+
+### Display Job History
+
+`bjobs` shows what `mbd` holds now: active jobs and the recently
+finished ones. `bhist` reads the manifest and its archives on disk:
+it also shows jobs `mbd` has already dropped, and the events of each
+job in order.
+
+Without arguments `bhist` shows one block per job of the calling
+user, `-u user` for another user. With a job id it adds the job's
+events:
+
+```sh
+bhist 109139
+```
+
+```text
+Job <109139>  User <sofia>  Queue <batch>  Status <DONE>
+  Submitted:    Oct 31 16:24:19
+  Submit host:  buntu24
+  Name:         -
+  CWD:          /home/sofia/tmp
+  Command:      sleep 10
+  Priority:     50
+  stdout:       /dev/null
+  stderr:       /dev/null
+  Requested resources:  2 host(s)  4 cpu(s)/host  1 gpu(s)/host  0 MB mem
+
+  Oct 31 16:24:21  Dispatched to:  sim1 sim3
+                  GPU devices:  0
+  Oct 31 16:24:21  Forked  pid: 2988
+  Oct 31 16:24:32  Finished  state: DONE exit_status: 0
+
+  CPU time:     0.00 sec
+  Max memory:   1 MB
+  Max swap:     0 MB
+```
+
+`bhist -r` and `bhist -p` show only the running or pending jobs. Every
+`bhist` reads all the manifest archives: see Manifest Archives in the
+operations guide for pruning them.
 
 ### Signal a Job
 
@@ -370,6 +412,49 @@ jobs can be submitted first, followed immediately by a post-processing job that
 depends on all simulations completing successfully. The dependent job remains
 pending without requiring the user to monitor the earlier jobs or manually
 submit the next stage when they finish.
+
+## Multi-Host Jobs
+
+A job submitted with `--nhosts` greater than 1 gets its hosts from
+the scheduler, and the list in the `LL_HOSTS` environment variable,
+for example `hostA 4,hostB 4`: host name and cpus per host.
+
+The job starts on the first host only. Starting processes on the
+other hosts is up to the application or its launcher, from the
+hosts in `LL_HOSTS`: for example `torchrun` started on each host
+with ssh for distributed training, a Ray cluster with `ray start`
+on each host, or `mpirun` with a host file. Those processes are
+started outside LavaLite: they are not in the job's cgroup and
+`bkill` does not reach them.
+
+A multi-host job with `--gpus` holds its GPUs on every host but gets
+no `CUDA_VISIBLE_DEVICES`. Run it with `--exclusive` and all the GPUs
+of each host: every GPU of a host is then the job's, and the framework
+picks one per process by its local rank. See `llb.hosts(5)`.
+
+Starting the job on every host is planned for a future release.
+
+## Services
+
+A service is a long-running application, such as Jupyter or
+code-server, defined in `llb.services`. Each instance is a job in the
+service's `QUEUE`, running in its own network namespace on an
+execution host. `bservices -s` starts one and prints its endpoint,
+`http://host:port`.
+
+**Use services from the login node.** Users start instances and
+connect to their endpoints from the login or frontend node, a host
+that is not in the service queue's `HOSTS`. The endpoint is a DNAT
+rule in the `prerouting` chain of the execution host, and that chain
+only sees traffic arriving from other hosts: a connection from the
+execution host to itself never passes through it and gets nothing.
+From any other host the endpoint works.
+
+So keep the login node out of the service queue. Users reach the
+endpoint from their workstation through the login node, for example
+with `ssh -L`; routing beyond the login node is the site's own.
+
+Execution hosts of a service queue need `iproute2` (`ip`) and `nft`.
 
 ## Administrative Maintenance
 

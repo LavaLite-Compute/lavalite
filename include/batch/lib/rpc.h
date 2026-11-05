@@ -6,8 +6,9 @@
 #include "base/lib/ll.protocol.h"
 
 enum mbd_err {
-    MBD_OK = 0,
-    /* non-zero status is an errno value */
+    MBD_OK,
+    /* non-zero status is an errno value
+     */
 };
 
 enum batch_lib_op {
@@ -45,7 +46,16 @@ enum batch_lib_op {
     BATCH_JOB_MOVE_ACK,
     BATCH_JOB_PRIORITY,
     BATCH_JOB_PRIORITY_ACK,
+    // service api requests
+    BATCH_SERVICE_START,
+    BATCH_SERVICE_START_ACK,
+    BATCH_SERVICE_INFO,
+    BATCH_SERVICE_INFO_ACK,
+    BATCH_SERVICE_DELETE,
+    BATCH_SERVICE_DELETE_ACK,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);
+int call_mbd_timeout(const void *, size_t, void **,
+                     struct protocol_header *, int);
 const char *batch_op_str(enum batch_lib_op);

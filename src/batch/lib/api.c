@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <pwd.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -31,7 +33,9 @@ const char *pend_reason_msg[] = {
     [PEND_GPU_MODEL] = "no host has the required GPU model",
     [PEND_HOST_EXCLUSIVE] = "exclusive constraint cannot be satisfied",
     [PEND_HOST_OVERFLOW] = "host allocation size overflow buffer",
-    [PEND_DEPEND] = "waiting for job dependency"};
+    [PEND_DEPEND] = "waiting for job dependency",
+    [PEND_QUEUE_JOB_LIMIT] = "queue concurrent job limit reached",
+};
 
 struct queue_info *llb_queue_info(int32_t *nqueues)
 {
@@ -800,6 +804,383 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
     return 0;
 }
 
+
+struct svc_info *llb_service_info(int32_t *nsvc)
+{
+    char buf[LL_BUFSIZ_256];
+    XDR xdrs;
+
+    if (nsvc == NULL) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    *nsvc = 0;
+
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SERVICE_INFO;
+
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+
+    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
+        xdr_destroy(&xdrs);
+        errno = EPROTO;
+        return NULL;
+    }
+
+    size_t len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    void *rep = NULL;
+    struct protocol_header rhdr;
+
+    if (call_mbd(buf, len, &rep, &rhdr) < 0)
+        return NULL;
+
+    if (rhdr.status != MBD_OK) {
+        errno = rhdr.status;
+        free(rep);
+        return NULL;
+    }
+
+    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
+
+    struct wire_svc_info_array w;
+    memset(&w, 0, sizeof(w));
+
+    if (!xdr_wire_svc_info_array(&xdrs, &w)) {
+        xdr_destroy(&xdrs);
+        free(rep);
+        errno = EPROTO;
+        return NULL;
+    }
+
+    xdr_destroy(&xdrs);
+    free(rep);
+
+    /* NULL is an error, no services is an empty array and *nsvc 0 */
+    struct svc_info *out = calloc(w.nsvc > 0 ? w.nsvc : 1, sizeof(*out));
+    if (out == NULL) {
+        xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+        errno = ENOMEM;
+        return NULL;
+    }
+
+    for (uint32_t i = 0; i < w.nsvc; i++) {
+        struct wire_svc_info *src = &w.svc[i];
+        struct svc_info *dst = &out[i];
+
+        dst->name = strdup(src->name);
+        dst->queue = strdup(src->queue);
+        dst->command = strdup(src->command);
+
+        if (dst->name == NULL || dst->queue == NULL || dst->command == NULL)
+            goto fail;
+
+        if (src->token_env[0] != '\0') {
+            dst->token_env = strdup(src->token_env);
+            if (dst->token_env == NULL)
+                goto fail;
+        }
+
+        dst->restart_never = src->restart_never;
+        dst->port = src->port;
+        dst->run_limit = src->run_limit;
+        dst->num_run = src->num_run;
+        dst->num_pend = src->num_pend;
+        dst->num_finish = src->num_finish;
+        dst->ninstances = src->ninstances;
+
+        if (src->ninstances == 0)
+            continue;
+
+        dst->instances =
+            calloc(src->ninstances, sizeof(*dst->instances));
+        if (dst->instances == NULL)
+            goto fail;
+
+        for (uint32_t j = 0; j < src->ninstances; j++) {
+            struct wire_svc_instance_info *si = &src->instances[j];
+            struct svc_instance_info *di = &dst->instances[j];
+
+            di->service = strdup(si->service);
+            if (di->service == NULL)
+                goto fail;
+
+            di->uid = (uid_t) si->uid;
+            di->port = si->port;
+
+            if (si->run_host[0] != '\0') {
+                di->run_host = strdup(si->run_host);
+                if (di->run_host == NULL)
+                    goto fail;
+            }
+
+            di->job_id = si->job_id;
+            di->status = si->status;
+
+            if (si->token[0] != '\0') {
+                di->token = strdup(si->token);
+                if (di->token == NULL)
+                    goto fail;
+            }
+        }
+    }
+
+    *nsvc = (int32_t) w.nsvc;
+
+    xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+
+    return out;
+
+fail:
+    for (uint32_t i = 0; i < w.nsvc; i++) {
+        free(out[i].name);
+        free(out[i].queue);
+        free(out[i].command);
+        free(out[i].token_env);
+
+        if (out[i].instances != NULL) {
+            for (uint32_t j = 0; j < out[i].ninstances; j++) {
+                free(out[i].instances[j].service);
+                free(out[i].instances[j].run_host);
+                free(out[i].instances[j].token);
+            }
+
+            free(out[i].instances);
+        }
+    }
+
+    free(out);
+
+    xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+
+    errno = ENOMEM;
+    return NULL;
+}
+
+void llb_free_service_info(struct svc_info *s, int32_t n)
+{
+    if (s == NULL)
+        return;
+
+    for (int32_t i = 0; i < n; i++) {
+        free(s[i].name);
+        free(s[i].queue);
+        free(s[i].command);
+        free(s[i].token_env);
+
+        for (uint32_t j = 0; j < s[i].ninstances; j++) {
+            free(s[i].instances[j].service);
+            free(s[i].instances[j].run_host);
+            free(s[i].instances[j].token);
+        }
+
+        free(s[i].instances);
+    }
+
+    free(s);
+}
+
+/* run_limit in seconds, 0 takes the service RUNLIMIT
+ */
+int32_t llb_service_start(const char *name, int32_t run_limit,
+                          struct svc_instance_info *out)
+{
+    size_t bufsz =
+        PACKET_HEADER_SIZE + sizeof(struct wire_svc_start) + LL_BUFSIZ_64;
+    char *buf = malloc(bufsz);
+    if (buf == NULL)
+        return -1;
+
+    struct wire_svc_start req;
+    memset(&req, 0, sizeof(req));
+    ll_strlcpy(req.name, name, sizeof(req.name));
+    req.run_limit = run_limit;
+
+    /*
+     * Submission context, local and cheap here (a client process
+     * calling getpwuid() once), same convention as bsub's submit.c --
+     * mbd never resolves uid to a name/home_dir itself.
+     */
+    struct passwd *pw = getpwuid(getuid());
+    if (pw == NULL) {
+        free(buf);
+        errno = EINVAL;
+        return -1;
+    }
+
+    ll_strlcpy(req.username, pw->pw_name, sizeof(req.username));
+    ll_strlcpy(req.home_dir, pw->pw_dir, sizeof(req.home_dir));
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SERVICE_START;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        free(buf);
+        return -1;
+    }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
+
+    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_start, &hdr)) {
+        xdr_destroy(&xdrs);
+        free(buf);
+        errno = EPROTO;
+        return -1;
+    }
+
+    size_t len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    void *rep = NULL;
+    struct protocol_header rhdr;
+
+    /* the ack is deferred until the backing job runs, which may take
+     * as long as the queue does: block, ^C gets out */
+    if (call_mbd_timeout(buf, len, &rep, &rhdr, -1) < 0) {
+        free(buf);
+        return -1;
+    }
+
+    free(buf);
+
+    if (rhdr.status != MBD_OK) {
+        errno = rhdr.status;
+        free(rep);
+        return -1;
+    }
+
+    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
+
+    struct wire_svc_instance_info w;
+    memset(&w, 0, sizeof(w));
+
+    if (!xdr_wire_svc_instance_info(&xdrs, &w)) {
+        xdr_destroy(&xdrs);
+        free(rep);
+        errno = EPROTO;
+        return -1;
+    }
+
+    xdr_destroy(&xdrs);
+    free(rep);
+
+    memset(out, 0, sizeof(*out));
+
+    out->service = strdup(w.service);
+    if (out->service == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    out->uid = (uid_t) w.uid;
+    out->port = w.port;
+
+    if (w.run_host[0] != '\0') {
+        out->run_host = strdup(w.run_host);
+        if (out->run_host == NULL) {
+            free(out->service);
+            out->service = NULL;
+            errno = ENOMEM;
+            return -1;
+        }
+    }
+
+    out->job_id = w.job_id;
+
+    if (w.token[0] != '\0') {
+        out->token = strdup(w.token);
+        if (out->token == NULL) {
+            free(out->service);
+            free(out->run_host);
+            out->service = NULL;
+            out->run_host = NULL;
+            errno = ENOMEM;
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int32_t llb_service_delete(int64_t job_id, const char *host, int32_t port)
+{
+    struct wire_svc_delete req;
+    memset(&req, 0, sizeof(req));
+    req.job_id = job_id;
+    if (host != NULL)
+        ll_strlcpy(req.host, host, sizeof(req.host));
+    req.port = port;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SERVICE_DELETE;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        return -1;
+    }
+
+    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_svc_delete)
+        + LL_BUFSIZ_64;
+    char *buf = calloc(bufsz, sizeof(char));
+    if (buf == NULL)
+        return -1;
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
+    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_delete, &hdr)) {
+        xdr_destroy(&xdrs);
+        free(buf);
+        errno = EPROTO;
+        return -1;
+    }
+    size_t len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    void *rep = NULL;
+    struct protocol_header rhdr;
+    if (call_mbd(buf, len, &rep, &rhdr) < 0) {
+        free(buf);
+        return -1;
+    }
+    free(buf);
+    free(rep);
+
+    if (rhdr.status != MBD_OK) {
+        errno = rhdr.status;
+        return -1;
+    }
+
+    return 0;
+}
+
+const char *llb_svc_status_str(int32_t state)
+{
+    switch (state) {
+    case SVC_PENDING:
+        return "PEND";
+    case SVC_RUNNING:
+        return "RUN";
+    case SVC_FINISH:
+        return "FINISH";
+    case SVC_DISP:
+        return "DISP";
+    default:
+        return "BADSTATE";
+    }
+}
+
 const char *llb_job_state_str(int32_t state)
 {
     switch (state) {
@@ -815,8 +1196,6 @@ const char *llb_job_state_str(int32_t state)
         return "EXIT";
     case JOB_DONE:
         return "DONE";
-    case JOB_BROKEN:
-        return "BROKEN";
     case JOB_ORPHAN:
         return "ORPHAN";
     case JOB_UNKNOWN:

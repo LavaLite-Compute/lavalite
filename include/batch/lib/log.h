@@ -14,7 +14,7 @@
 
 #include "base/lib/ll.bufsiz.h"
 
-#define LOG_VERSION 1
+#define LOG_VERSION 2
 
 /*
  * Event types. Values are stable on disk -- do not reorder.
@@ -32,6 +32,7 @@ enum event_type {
     EVENT_JOB_MOVE,        /* job moved to a different queue */
     EVENT_JOB_PRIORITY,    /* job priority changed */
     EVENT_JOB_PEND,        /* dispatched job returned to pending */
+    EVENT_JOB_RESUME,      /* sbd resumed suspended running job   */
     EVENT_COUNT
 };
 
@@ -89,6 +90,11 @@ struct log_job_new {
     char machines[LL_BUFSIZ_1K];
     char tokenpool[LL_BUFSIZ_256];
     char depend_cond[LL_BUFSIZ_4K];
+    char service_name[LL_BUFSIZ_64];
+    char service_token[LL_BUFSIZ_64];
+    int32_t run_limit; /* seconds from run_start, 0 = none */
+    time_t run_start;  /* first fork, kept across relocations; written
+                        * by compaction, 0 in a submit record */
 };
 
 /* log_job_start: mbd dispatched the job to sbd.
@@ -101,7 +107,7 @@ struct log_job_start {
     int gpus_per_host;
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* assigned CUDA device IDs e.g. "0,1" */
-    char hosts[LL_BUFSIZ_4K];        /* space-separated exec hosts */
+    char run_hosts[LL_BUFSIZ_4K];        /* space-separated exec hosts */
 };
 
 /*
@@ -111,6 +117,7 @@ struct log_job_start {
 struct log_job_fork {
     int64_t job_id;
     int32_t job_pid;
+    int32_t service_port; /* service jobs: endpoint port picked by sbd */
     time_t fork_time; /* mbd clock: set by caller before write */
 };
 
@@ -122,6 +129,7 @@ struct log_job_signal {
     int64_t job_id;
     int32_t signal_num;
     uint32_t uid;
+    uint32_t job_flags; /* JOB_FLAG_* at signal time */
     time_t signal_time; /* mbd clock: set by caller before write */
 };
 
@@ -152,6 +160,11 @@ struct log_job_pend_resume {
 };
 
 struct log_job_susp {
+    int64_t job_id;
+    time_t event_time;
+};
+
+struct log_job_resume {
     int64_t job_id;
     time_t event_time;
 };
@@ -189,6 +202,7 @@ int log_parse_job_fork(const struct event_rec *, struct log_job_fork *);
 int log_parse_job_signal(const struct event_rec *, struct log_job_signal *);
 int log_parse_job_finish(const struct event_rec *, struct log_job_finish *);
 int log_parse_job_susp(const struct event_rec *, struct log_job_susp *);
+int log_parse_job_resume(const struct event_rec *, struct log_job_resume *);
 int log_parse_job_pend_resume(const struct event_rec *,
                               struct log_job_pend_resume *);
 int log_parse_job_pend_susp(const struct event_rec *,
@@ -204,6 +218,7 @@ int log_write_job_fork(FILE *, const struct log_job_fork *);
 int log_write_job_signal(FILE *, const struct log_job_signal *);
 int log_write_job_finish(FILE *, const struct log_job_finish *);
 int log_write_job_susp(FILE *, const struct log_job_susp *);
+int log_write_job_resume(FILE *, const struct log_job_resume *);
 int log_write_job_pend_resume(FILE *, const struct log_job_pend_resume *);
 int log_write_job_pend_susp(FILE *, const struct log_job_pend_susp *);
 int log_write_job_move(FILE *, const struct log_job_move *);

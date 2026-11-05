@@ -1,6 +1,6 @@
-# LavaLite 1.0 Testing
+# LavaLite Testing
 
-This directory contains the manual test plan for LavaLite 1.0.
+This directory contains the manual test plan for LavaLite.
 
 The goal is to verify the documented user-visible behavior of the
 LavaLite commands, daemons, persistent state, and event replay logic.
@@ -20,42 +20,61 @@ LavaLite commands, daemons, persistent state, and event replay logic.
 - `11-bjobs.md`
   Job listing and visible job states: `PEND`, `HELD`, `RUN`, `SUSP`, `DONE`, `EXIT`.
 
-- `12-bhist.md`
-  Job history, detailed job view, lifecycle events, dispatch records, and fork records.
-
-- `13-bkill.md`
+- `12-bkill.md`
   Job termination, suspension, resume, and held-job release through signals.
 
-- `14-bmove.md`
+- `13-bmove.md`
   Moving pending or held jobs between queues.
 
-- `15-bpriority.md`
+- `14-bpriority.md`
   Changing job priority and verifying scheduling order.
 
-### Cluster State Commands
+- `15-bsub-options.md`
+  Resource, placement, I/O and scheduling option combinations.
 
-- `20-bhosts.md`
-  Host listing, resource counters, host close/open behavior.
+- `16-run-limit.md`
+  `--time` run limit, `--terminate` deadline, expiry while pending, `DISP`.
 
-- `21-bqueues.md`
-  Queue listing, queue counters, queue close/open behavior.
+- `17-bservices.md`
+  Service instances: start, endpoint, delete, restart, token, run limit.
 
-- `22-bgroups.md`
-  Host group listing and host group membership validation.
+- `18-robustness.md`
+  Silent and rejecting `sbd`, orphan jobs, `bkill -s kill`, replay and
+  finished job retention.
 
-- `23-btokens.md`
-  Token pool listing, token allocation, and token release.
+- `20-chaos.md`
+  Users load the cluster with `jload` and `sload` while the
+  administrator runs `chaos`.
 
-### Recovery and Persistence
+### Configuration
 
-- `30-mbd-restart.md`
-  Restarting `mbd` and verifying state recovery.
+- `19-config-changes.md`
+  Configuration changes and mbd restart: configuration errors, lowering
+  host capacity under running jobs.
 
-- `31-sbd-restart.md`
-  Restarting `sbd` and verifying running job behavior.
+### Reference
 
-- `32-event-replay.md`
-  Verifying event replay, job reconstruction, and `bhist` correctness.
+- `90-things-to-know.md`
+  Known limits and by-design behaviour. Read before filing a failure.
+
+- `bench-plan.md`
+  Performance benchmark plan.
+
+### Planned
+
+- `bhist`, `bhosts`, `bqueues`, `bgroups`, `btokens` command tests.
+- `sbd` restart and event replay tests.
+
+## Automated Tests
+
+`src/tests/system/run_tests.sh` runs the scripted subset as a normal
+user against a running cluster. Each script prints `PASS`, `FAIL` or
+`SKIP`. The service scripts use the service named by `$SVC`, default
+`echotest`, and skip when it is not configured.
+
+`src/tests/sim/simqa.sh` runs the robustness scenarios of
+`18-robustness.md` on one box, as root, with its own configuration,
+`mbd` and two sim `sbd`s. It needs no running cluster.
 
 ## Test Format
 

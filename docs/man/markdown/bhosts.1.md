@@ -12,7 +12,7 @@ bhosts - display host information and manage host availability
 
 # SYNOPSIS
 
-**bhosts**
+**bhosts** [**-l**] [*host*...]
 
 **bhosts** **--close** *host*
 
@@ -27,17 +27,26 @@ The **--close** and **--open** options require administrator privileges.
 
 # OPTIONS
 
-**--close** *host*
+*host*...
+:   Show only the named hosts, in the order given. An unknown name is
+    reported on stderr and the exit status is non-zero.
+
+**-l**, **--long**
+:   One block per host with used/total for each resource. Used can
+    exceed total when the host capacity was lowered in **llb.hosts**
+    while jobs were running: the host gets no new jobs until it drains.
+
+**-c**, **--close** *host*
 :   Close the named host. A closed host does not accept new jobs.
     Running jobs are not affected.
 
-**--open** *host*
+**-o**, **--open** *host*
 :   Open a previously closed host, making it available for job dispatch.
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-v**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT
@@ -49,6 +58,9 @@ Displays a table with the following columns:
 
 **STATE**
 :   Host state. Values: **ok**, **unavail**, **ok|closed**, **unavail|closed**.
+    **|tainted** is appended while the host is tainted: its **sbd**
+    rejected a job and the host gets no new jobs for 60 seconds.
+    The taint clears by itself, or when **sbd** reconnects.
 
 **NCPU**
 :   Total CPU slots. This is the sole scheduling capacity dial for the

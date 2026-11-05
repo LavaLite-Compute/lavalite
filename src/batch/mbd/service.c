@@ -1,0 +1,624 @@
+/*
+ * Copyright (C) LavaLite Contributors
+ * GPL v2
+ */
+
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <assert.h>
+#include <signal.h>
+#include <sys/random.h>
+
+#include "base/lib/auth.h"
+#include "base/lib/ll.syslog.h"
+#include "base/lib/ll.sys.h"
+#include "batch/lib/wire.h"
+#include "batch/lib/rpc.h"
+#include "batch/mbd/mbd.h"
+
+/* prototype defaults -- promote to llb.services config later if a real
+ * service ever needs to ask for more than this */
+#define SVC_DEFAULT_NUM_CPUS    1
+#define SVC_DEFAULT_NUM_HOSTS   1
+#define SVC_DEFAULT_MEM_MB      0
+#define SVC_DEFAULT_STORAGE_MB  0
+
+struct service_data *svc_find_by_name(const char *name)
+{
+    struct ll_list_entry *e;
+    struct service_data *svc;
+
+    for (e = service_list.head; e != NULL; e = e->next) {
+        svc = (struct service_data *) e;
+        if (strcmp(svc->name, name) == 0)
+            return svc;
+    }
+
+    return NULL;
+}
+
+static int service_build_script(const struct service_instance *inst,
+                                char *buf, size_t bufsiz)
+{
+    int n = snprintf(buf, bufsiz,
+                     "#!/bin/sh\n"
+                     "# LavaLite: environment\n"
+                     "HOME='%s'; export HOME\n"
+                     "USER='%s'; export USER\n"
+                     "PATH='/usr/bin:/bin:/usr/local/bin'; export PATH\n"
+                     "# LavaLite: end environment\n"
+                     "# LavaLite: user command\n"
+                     "%s\n"
+                     "ExitStat=$?\n"
+                     "echo \"$ExitStat $(date +%%s)\" > \"$LL_JOBDIR/exit\"\n"
+                     "exit $ExitStat\n",
+                     inst->pend_ws.home_dir,
+                     inst->pend_ws.username,
+                     inst->pend_ws.command);
+
+    if (n < 0 || (size_t) n >= bufsiz) {
+        LL_ERRX("script truncated uid=%u", inst->uid);
+        return -1;
+    }
+
+    return n;
+}
+
+static struct job_data *service_job_create(struct service_instance *inst,
+                                           int *err)
+{
+    char script_text[LL_BUFSIZ_8K];
+
+    int script_len = service_build_script(inst, script_text, sizeof(script_text));
+    if (script_len < 0) {
+        *err = EINVAL;
+        return NULL;
+    }
+
+    struct wire_job_script script;
+    memset(&script, 0, sizeof(script));
+    script.data = script_text;
+    script.len = (uint32_t)script_len;
+
+    struct job_data *job =
+        job_prepare(&inst->pend_ws, &script, &inst->pend_hdr, err);
+    if (job == NULL)
+        return NULL;
+
+    job->svc_inst = inst;
+    inst->job_id = job->job_id;
+
+    job_commit(job, &inst->pend_ws);
+    job_id_seq_write(); /* sequence must never go backwards */
+
+    return job;
+}
+
+/* 16 random bytes as 32 hex chars */
+static int svc_token_new(char *buf, size_t bufsiz)
+{
+    unsigned char r[16];
+
+    assert(bufsiz > 2 * sizeof(r));
+    if (getrandom(r, sizeof(r), 0) != (ssize_t) sizeof(r)) {
+        LL_ERR("getrandom failed");
+        return -1;
+    }
+    for (size_t i = 0; i < sizeof(r); i++)
+        snprintf(buf + 2 * i, 3, "%02x", r[i]);
+
+    return 0;
+}
+
+/* host:port is unique among running instances whatever the owner,
+ * the ownership check is done by the caller */
+static struct service_instance *svc_find_running_endpoint(const char *host,
+                                                          int port)
+{
+    struct service_instance *found = NULL;
+
+    for (struct ll_list_entry *se = service_list.head;
+         se != NULL; se = se->next) {
+
+        struct service_data *svc = (struct service_data *)se;
+
+        for (struct ll_list_entry *ie = svc->instances.head;
+             ie != NULL; ie = ie->next) {
+
+            struct service_instance *inst = (struct service_instance *)ie;
+
+            if (inst->status != SVC_RUNNING)
+                continue;
+
+            if (inst->port != port)
+                continue;
+
+            if (strcmp(inst->run_host, host) != 0)
+                continue;
+
+            if (found != NULL) {
+                LL_ERRX("duplicate running service endpoint host=%s "
+                        "port=%d job1=%ld job2=%ld", host, port,
+                        found->job_id, inst->job_id);
+                assert(found == NULL);
+            }
+            found = inst;
+        }
+    }
+
+    return found;
+}
+
+int service_start_instance(const struct protocol_header *hdr, int chan_id,
+                           const struct wire_svc_start *ws)
+{
+    struct service_data *svc = svc_find_by_name(ws->name);
+    if (svc == NULL) {
+        LL_ERRX("service=%s asked by uid=%u not found", ws->name, hdr->uid);
+        return ESRCH;
+    }
+
+    /* RUNLIMIT is the site cap, the user may only ask for less */
+    int32_t run_limit = svc->run_limit;
+    if (ws->run_limit > 0) {
+        if (svc->run_limit > 0 && ws->run_limit > svc->run_limit) {
+            LL_ERRX("service=%s uid=%u run_limit=%d exceeds RUNLIMIT=%d",
+                    ws->name, hdr->uid, ws->run_limit, svc->run_limit);
+            return EINVAL;
+        }
+        run_limit = ws->run_limit;
+    }
+
+    struct service_instance *inst = calloc(1, sizeof(*inst));
+    if (inst == NULL) {
+        LL_ERR("calloc failed");
+        return ENOMEM;
+    }
+
+    inst->svc = svc;
+    inst->chan_id = chan_id;
+    inst->uid = hdr->uid;
+
+    if (svc->token_env[0] != 0
+        && svc_token_new(inst->token, sizeof(inst->token)) < 0) {
+        free(inst);
+        return EIO;
+    }
+
+    /* Build the synthetic wire_job_submit structure. COMMAND is the
+     * site's full command line, container runtime and binds included,
+     * run as is by the job script's shell.
+     */
+    memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
+    ll_strlcpy(inst->pend_ws.command, svc->command,
+               sizeof(inst->pend_ws.command));
+    inst->pend_ws.run_limit = run_limit;
+
+    inst->pend_ws.flags |= JOB_FLAG_SERVICE;
+    if (svc->restart == LL_SERVICE_RESTART_ALWAYS)
+        inst->pend_ws.flags |= JOB_FLAG_RELOCATABLE;
+
+    ll_strlcpy(inst->pend_ws.name, svc->name, sizeof(inst->pend_ws.name));
+    ll_strlcpy(inst->pend_ws.queue, svc->queue, sizeof(inst->pend_ws.queue));
+    ll_strlcpy(inst->pend_ws.username, ws->username,
+               sizeof(inst->pend_ws.username));
+    ll_strlcpy(inst->pend_ws.home_dir, ws->home_dir,
+               sizeof(inst->pend_ws.home_dir));
+    ll_strlcpy(inst->pend_ws.cwd, ws->home_dir, sizeof(inst->pend_ws.cwd));
+    inst->pend_ws.num_cpus = SVC_DEFAULT_NUM_CPUS;
+    inst->pend_ws.num_hosts = SVC_DEFAULT_NUM_HOSTS;
+    inst->pend_ws.mem_mb = SVC_DEFAULT_MEM_MB;
+    inst->pend_ws.storage_mb = SVC_DEFAULT_STORAGE_MB;
+
+    /* requester's identity, used by job_prepare() */
+    inst->pend_hdr = *hdr;
+    inst->status = SVC_PENDING;
+
+    int err;
+    struct job_data *job = service_job_create(inst, &err);
+    if (job == NULL) {
+        LL_ERRX("failed create service job for uid=%u err=%d", hdr->uid, err);
+        free(inst);
+        return err;
+    }
+
+    ll_list_append(&svc->instances, &inst->ent);
+
+    /* No reply yet: BATCH_SERVICE_START_ACK is deferred until
+     * mbd_new_job_reply() sees this job reach RUNNING, then the
+     * client gets run_host:port.
+     */
+    LL_INFO("SVC_PENDING service=%s job=%ld uid=%u run_limit=%d cmd=[%s]",
+            svc->name, inst->job_id, inst->uid, run_limit,
+            inst->pend_ws.command);
+
+    return 0;
+}
+
+/* the token goes only to the instance owner */
+static void svc_inst_to_wire(const struct service_instance *inst,
+                             struct wire_svc_instance_info *w, uid_t viewer)
+{
+    memset(w, 0, sizeof(*w));
+
+    ll_strlcpy(w->service, inst->svc->name, sizeof(w->service));
+    w->uid = inst->uid;
+    w->port = inst->port;
+    w->job_id = inst->job_id;
+    w->status = inst->status;
+
+    /* DISP, as bjobs: dispatched, no pid yet, display only */
+    struct job_data *job = job_find(inst->job_id);
+    if (inst->status == SVC_PENDING && job != NULL
+        && job->state == JOB_RUNNING && job->pid == 0)
+        w->status = SVC_DISP;
+
+    if (inst->run_host[0] != 0)
+        ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
+
+    if (viewer == inst->uid)
+        ll_strlcpy(w->token, inst->token, sizeof(w->token));
+}
+
+int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
+{
+    *out = NULL;
+
+    int nsvc = ll_list_count(&service_list);
+    if (nsvc == 0)
+        return 0;
+
+    struct wire_svc_info *dst = calloc(nsvc, sizeof(*dst));
+    if (dst == NULL) {
+        LL_ERR("calloc failed");
+        errno = ENOMEM;
+        return -1;
+    }
+
+    int n = 0;
+
+    for (struct ll_list_entry *se = service_list.head; se != NULL;
+         se = se->next) {
+        struct service_data *svc = (struct service_data *) se;
+        struct wire_svc_info *wsvc = &dst[n];
+
+        ll_strlcpy(wsvc->name, svc->name, sizeof(wsvc->name));
+        ll_strlcpy(wsvc->queue, svc->queue, sizeof(wsvc->queue));
+        wsvc->restart_never = svc->restart == LL_SERVICE_RESTART_NEVER;
+        wsvc->port = svc->port;
+        wsvc->run_limit = svc->run_limit;
+        ll_strlcpy(wsvc->token_env, svc->token_env, sizeof(wsvc->token_env));
+        ll_strlcpy(wsvc->command, svc->command, sizeof(wsvc->command));
+
+        uint32_t ninstances = 0;
+
+        for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
+             ie = ie->next) {
+            struct service_instance *inst = (struct service_instance *) ie;
+
+            /* counts are for all users, as bqueues */
+            if (inst->status == SVC_RUNNING)
+                wsvc->num_run++;
+            else if (inst->status == SVC_PENDING)
+                wsvc->num_pend++;
+            else
+                wsvc->num_finish++;
+
+            if (!all && inst->uid != uid)
+                continue;
+
+            ninstances++;
+        }
+
+        wsvc->ninstances = ninstances;
+        if (wsvc->ninstances == 0) {
+            ++n;
+            continue;
+        }
+
+        wsvc->instances = calloc(ninstances, sizeof(*wsvc->instances));
+        if (wsvc->instances == NULL) {
+            LL_ERR("calloc failed");
+            errno = ENOMEM;
+            goto fail;
+        }
+
+        uint32_t j = 0;
+        for (struct ll_list_entry *ie = svc->instances.head;
+             ie != NULL;
+             ie = ie->next) {
+            struct service_instance *inst = (struct service_instance *) ie;
+
+            if (!all && inst->uid != uid)
+                continue;
+
+            svc_inst_to_wire(inst, &wsvc->instances[j], uid);
+            j++;
+        }
+        n++;
+    }
+
+    *out = dst;
+    return nsvc;
+
+fail:
+    for (int i = 0; i < nsvc; i++)
+        free(dst[i].instances);
+
+    free(dst);
+    return -1;
+}
+
+void service_job_running(struct job_data *job, struct mbd_host *host,
+                         int32_t port)
+{
+    if (job->svc_inst == NULL)
+        return;
+
+    struct service_instance *inst = job->svc_inst;
+
+    ll_strlcpy(inst->run_host, host->net.name, sizeof(inst->run_host));
+
+    inst->status = SVC_RUNNING;
+    inst->port = port;
+
+    /* Only the first incarnation has a client waiting on the deferred
+     * ack. After a restart chan_id is -1: the old channel is closed
+     * or, worse, reused by another client.
+     */
+    if (inst->chan_id < 0) {
+        LL_INFO("job=%ld endpoint=%s:%d, client notified at first start",
+                job->job_id, inst->run_host, inst->port);
+        return;
+    }
+
+    struct wire_svc_instance_info info;
+    svc_inst_to_wire(inst, &info, inst->uid);
+
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_SERVICE_START_ACK;
+    rep_hdr.status = MBD_OK;
+
+    int chan_id = inst->chan_id;
+    inst->chan_id = -1;
+
+    if (auth_sign_header(&rep_hdr) < 0) {
+        LL_ERR("auth_sign_header failed job=%ld uid=%u", job->job_id,
+               inst->uid);
+        return;
+    }
+
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_svc_instance_info, &info);
+
+    if (enqueue_payload(chan_id, &rep_hdr, &info, siz,
+                        xdr_wire_svc_instance_info) < 0) {
+        LL_ERR("enqueue_payload failed job=%ld uid=%u", job->job_id,
+               inst->uid);
+        return;
+    }
+
+    LL_INFO("job=%ld endpoint=%s:%d client acked",
+            job->job_id, inst->run_host, inst->port);
+}
+
+static struct service_instance *svc_find_instance(int64_t job_id,
+                                                 const char *host, int port)
+{
+    if (job_id == 0)
+        return svc_find_running_endpoint(host, port);
+
+    struct job_data *job = job_find(job_id);
+    if (job == NULL || !job_is_service(job))
+        return NULL;
+
+    return job->svc_inst;
+}
+
+/* The client blocked on the first start would otherwise wait forever
+ * for a job that is not going to run.
+ */
+static void svc_cancel_start(struct service_instance *inst)
+{
+    if (inst->chan_id < 0)
+        return;
+
+    int chan_id = inst->chan_id;
+    inst->chan_id = -1;
+
+    if (enqueue_header(chan_id, BATCH_SERVICE_START_ACK, ECANCELED) < 0)
+        LL_ERRX("job=%ld cannot cancel start chan=%d", inst->job_id, chan_id);
+}
+
+/* A pending instance finished by mbd itself, deleted or out of time.
+ * Nothing exists on sbd, service_instance_finish() never runs.
+ */
+void service_pending_finished(struct service_instance *inst)
+{
+    inst->status = SVC_FINISH;
+    svc_cancel_start(inst);
+}
+
+int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
+                            int port)
+{
+    LL_INFO("uid=%u job=%ld endpoint=%s:%d", uid, job_id, host, port);
+
+    struct service_instance *inst = svc_find_instance(job_id, host, port);
+    if (inst == NULL) {
+        LL_ERRX("cannot find instance job=%ld endpoint=%s:%d uid=%u",
+                job_id, host, port, uid);
+        return ESRCH;
+    }
+
+    if (inst->uid != uid && !is_manager(uid)) {
+        LL_ERRX("job=%ld service=%s owned by uid=%u not by uid=%u",
+                inst->job_id, inst->svc->name, inst->uid, uid);
+        return EPERM;
+    }
+
+    struct job_data *job = job_find(inst->job_id);
+    if (job == NULL) {
+        LL_ERRX("cannot find job=%ld for service=%s uid=%u",
+                inst->job_id, inst->svc->name, inst->uid);
+        return ESRCH;
+    }
+
+    assert(job->flags & JOB_FLAG_SERVICE);
+    assert(job->svc_inst == inst);
+
+    if (job->state == JOB_DONE || job->state == JOB_EXITED)
+        return EINVAL;
+
+    struct wire_job_sig sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.job_id = job->job_id;
+    sig.sig = SIGKILL;
+
+    /* Cleared before the signal so event_job_signal() logs it and
+     * replay knows not to redispatch.
+     */
+    uint32_t old_flags = job->flags;
+    job->flags &= ~JOB_FLAG_RELOCATABLE;
+
+    /* Never dispatched, or waiting to restart: nothing exists on sbd,
+     * no BATCH_JOB_FINISH will come, so service_instance_finish()
+     * never runs. Finish the instance here.
+     */
+    if (job->state == JOB_PENDING) {
+        int rc = signal_pending_job(job, &sig);
+        if (rc != MBD_OK) {
+            job->flags = old_flags;
+            LL_ERRX("cannot finish pending job=%ld service=%s", job->job_id,
+                    inst->svc->name);
+            return rc;
+        }
+
+        service_pending_finished(inst);
+
+        LL_INFO("SVC_FINISH pending deleted by uid=%u service=%s job=%ld",
+                uid, inst->svc->name, job->job_id);
+        return MBD_OK;
+    }
+
+    int rc = signal_running_job(job, &sig);
+    if (rc != MBD_OK) {
+        job->flags = old_flags;
+        LL_ERRX("cannot kill job=%ld service=%s", job->job_id, inst->svc->name);
+        return rc;
+    }
+
+    return MBD_OK;
+}
+
+int service_instance_finish(struct service_instance *inst)
+{
+    assert(inst != NULL);
+
+    struct job_data *job = job_find(inst->job_id);
+    assert(job != NULL);
+    assert(job->svc_inst == inst);
+    assert(job->list_id == JOB_LIST_FINISH);
+    assert(job->state == JOB_DONE || job->state == JOB_EXITED);
+
+    inst->status = SVC_FINISH;
+
+    if (!(job->flags & JOB_FLAG_RELOCATABLE)) {
+        LL_INFO("SVC_FINISH service=%s uid=%u job=%ld not relocatable",
+                inst->svc->name, inst->uid, inst->job_id);
+        return 0;
+    }
+
+    /* out of time, killed by the run limit or by term_time:
+     * relocating would only restart a job that cannot run */
+    if (job_time_expired(job, time(NULL))) {
+        LL_INFO("SVC_FINISH service=%s uid=%u job=%ld time limit reached",
+                inst->svc->name, inst->uid, inst->job_id);
+        return 0;
+    }
+
+    /* mbd_job_finish() already released resources and decremented
+     * the queue counters. Restore only the pending job counters.
+     */
+    job->queue->num_jobs++;
+    job->queue->num_pend++;
+
+    job->pid = 0;
+    job->fork_time = 0;
+    job->dispatch_time = 0;
+    job->pid_wait_time = 0;
+    job->end_time = 0;
+    job->exit_status = 0;
+    job->pend_reason = PEND_NONE;
+
+    memset(job->run_hosts, 0,
+           job->res.num_hosts * sizeof(job->run_hosts[0]));
+    job->run_nhosts = 0;
+
+    job->state = JOB_PENDING;
+    job_move_list(job, &finish_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
+
+    /* endpoint belongs to the old incarnation, the next dispatch
+     * picks a new host and port */
+    inst->status = SVC_PENDING;
+    inst->port = 0;
+    inst->run_host[0] = 0;
+
+    event_job_pend(job);
+    mbd_assert_counters();
+
+    LL_INFO("service=%s job=%ld requeued for restart", inst->svc->name,
+            job->job_id);
+
+    return 0;
+}
+
+int job_is_service(const struct job_data *job)
+{
+    if ((job->flags & JOB_FLAG_SERVICE)) {
+        assert(job->svc_inst);
+        return 1;
+    }
+
+    return 0;
+}
+
+/* The client waiting for the first start went away (^C, lost
+ * connection): it withdrew the request. A pending instance is deleted
+ * like bkill on a pending job; one already dispatched or running is
+ * left alone, bservices shows it and -d stops it.
+ */
+void service_invalidate_chan(int chan_id)
+{
+    for (struct ll_list_entry *se = service_list.head; se != NULL;
+         se = se->next) {
+
+        struct service_data *svc = (struct service_data *)se;
+
+        for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
+             ie = ie->next) {
+            struct service_instance *inst = (struct service_instance *)ie;
+            if (inst->chan_id != chan_id)
+                continue;
+
+            /* no ack on a closed channel */
+            inst->chan_id = -1;
+
+            struct job_data *job = job_find(inst->job_id);
+            if (job == NULL || job->state != JOB_PENDING) {
+                LL_INFO("job=%ld service=%s client gone, instance kept",
+                        inst->job_id, inst->svc->name);
+                return;
+            }
+
+            LL_INFO("job=%ld service=%s client gone while pending, deleting",
+                    inst->job_id, inst->svc->name);
+            service_delete_instance(inst->uid, inst->job_id, "", 0);
+            return;
+        }
+
+    }
+}

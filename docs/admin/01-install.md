@@ -4,11 +4,11 @@
 
 LavaLite requires:
 
-- Linux on x86_64 or aarch64 (64-bit ARM)
+- Linux x86_64 or aarch64
 - Kernel 5.14 or later
 - cgroup v2
 - a service manager (systemd examples provided)
-- OpenSSL
+- OpenSSL 1.1.1 or later
 - NTP or chrony
 
 Verify cgroup v2:
@@ -22,6 +22,32 @@ Expected output:
 ```text
 cgroup on /sys/fs/cgroup type cgroup2 (...)
 ```
+
+## Build Requirements
+
+- A C compiler supporting C17: GCC 8 or later, or clang 6 or later.
+  `configure` appends `-std=gnu17` to `CFLAGS`, so the language level
+  does not depend on the compiler's default.
+- autoconf, automake, libtool, pkg-config
+- OpenSSL development headers
+- libtirpc development headers
+- pandoc, to build the man pages
+
+Debian/Ubuntu:
+
+```sh
+apt install build-essential autoconf automake libtool pkg-config \
+    libssl-dev libtirpc-dev pandoc
+```
+
+Rocky/RHEL:
+
+```sh
+dnf install gcc make autoconf automake libtool pkgconf-pkg-config \
+    openssl-devel libtirpc-devel pandoc
+```
+
+If `pandoc` is not found on Rocky/RHEL, enable EPEL or CRB.
 
 ## Create the LavaLite Administrator Account
 
@@ -44,8 +70,19 @@ Build LavaLite as admin or ordinary user:
 make
 sudo make install
 ```
+
+Compiler flags are passed to `configure`, `-std=gnu17` is appended to
+them:
+
+```sh
+./configure CFLAGS="-ggdb -O0 -Wall"
+```
+
+Do not override `CFLAGS` on the `make` command line, it replaces the
+configured flags and drops `-std=gnu17`.
+
 By default LavaLite is installed under a versioned directory, for example
-`/opt/lavalite-<version>` (e.g. `/opt/lavalite-1.1.0`).
+`/opt/lavalite-<version>` (e.g. `/opt/lavalite-2.0.0`).
 
 This directory forms the root of the LavaLite installation. All
 executables, configuration files, logs, and persistent state are located
@@ -87,19 +124,31 @@ Generate the key:
 
 ```sh
 dd if=/dev/urandom bs=32 count=1 | base64 \
-    > $LL_CONF_DIR/auth.key
+    > $LL_CONF_DIR/ll.auth.key
 ```
 
 Set permissions:
 
 ```sh
-chown lavalite:lavalite $LL_CONF_DIR/auth.key
-chmod 644 $LL_CONF_DIR/auth.key
+chown lavalite:lavalite $LL_CONF_DIR/ll.auth.key
+chmod 644 $LL_CONF_DIR/ll.auth.key
 ```
 
 The key must be world readable because user commands and applications
 linked against `libllbatch` generate HMAC signatures locally and must
 be able to read it.
+
+The key authenticates the cluster, not the user: whoever can read it
+can sign a request with any uid. The trust boundary is the cluster,
+run LavaLite where the users who can log in are trusted not to forge
+requests. The key keeps out hosts and processes outside the cluster.
+
+Every execution host must know the users' uids, from the same passwd,
+LDAP or other name service as the submission hosts. A host where the
+job's uid is unknown, or belongs to another user name than on the
+submission host, rejects the job: it returns to pending, the host is
+tainted for a while and the job runs elsewhere. The reason is in the
+`sbd` log.
 
 Copy the same file to every execution host.
 
@@ -111,6 +160,7 @@ LavaLite configuration is stored in:
 ll.conf
 llb.queues
 llb.hosts
+llb.services
 ```
 
 All files reside under:
@@ -184,6 +234,35 @@ man 5 llb.queues
 ```
 
 for the complete reference.
+
+### llb.services
+
+`llb.services` defines the services users can start with
+`bservices`: the command, the application port, the queue, the
+restart policy, an optional run limit and an optional token variable.
+
+See:
+
+```text
+man 5 llb.services
+```
+
+for the complete reference.
+
+### Service Hosts
+
+The execution hosts of a service queue need:
+
+- `iproute2` (`ip`) and `nftables` (`nft`).
+- IP forwarding, `net.ipv4.ip_forward = 1`: the endpoint traffic is
+  forwarded from the host's interface to the instance's namespace.
+- The service network `10.200.0.0/16` free on the host: each instance
+  gets a `/30` from it, on a veth pair local to the host.
+- The endpoint ports, 30000 and up, reachable from the login node.
+
+Users start instances and connect to them from the login node, a host
+that is not in the service queue: see Services in the queues, hosts
+and jobs guide.
 
 ## Post-Install Setup
 
@@ -262,7 +341,7 @@ etc/
 ├── ll.conf
 ├── llb.queues
 ├── llb.hosts
-└── auth.key
+└── ll.auth.key
 ```
 
 ### Master State
@@ -285,50 +364,72 @@ var/state/sbd/
 └── hostname
     ├── jobs
     └── state
-
 ```
 
-This directory is maintained by `sbd`.
+This directory is maintained by `sbd`, one per host.
 
 ### Simulator State
 
-When simulated hosts are configured:
+When simulated hosts are configured, each simulator has its own
+directory next to the real hosts, named after the sim:
 
 ```text
-var/state/
+var/state/sbd/
+├── worker4/
 ├── sim1/
 ├── sim2/
 └── ...
 ```
 
-Each simulator instance maintains its own local `sbd` state.
+### Shared State
+
+`var/state` may be local to each host or on a shared filesystem. Each
+daemon only uses its own directory, `mbd/` or `sbd/<hostname>`, so
+hosts never share files. A fast NFS server is fine for small and
+medium clusters.
 
 ## Daemon Working Directory and Core Files
 
-Core files are an essential debug tool when a daemon crashes
-unexpectedly. The following is a suggested setup; actual configuration
-depends on site policy and how systemd units are configured.
+Each daemon changes to its own state directory at startup, also when
+started by hand:
 
-A suggested working directory for the daemons:
-
-```sh
-mkdir /var/log/lavalite
-chown -R lavalite:lavalite /var/log/lavalite
+```text
+mbd        var/state/mbd
+sbd        var/state/sbd/<hostname>
+sim sbd    var/state/sbd/<sim name>
 ```
 
-A suggested core pattern (relative path, no directory prefix):
+A daemon that crashes leaves its core file there, next to its state,
+one directory per host also when `var/state` is shared. The units set
+`LimitCORE=infinity`.
+
+Where the kernel writes core files is set by `kernel.core_pattern`,
+for the whole host. Core files land in the working directory only if
+the pattern is a plain file name:
 
 ```sh
-sysctl -w kernel.core_pattern=core.%e.%p
+# /etc/sysctl.d/50-core.conf
+kernel.core_pattern = core.%e.%p.%t
 ```
 
-Inspect the current setting:
-
 ```sh
+sysctl --system
 sysctl kernel.core_pattern
 ```
 
-Site administrators should adjust these settings to match local policy.
+If the pattern starts with `|`, a handler takes the core instead:
+
+- `|/usr/lib/systemd/systemd-coredump`, the default on RHEL and Rocky:
+  cores are kept in `/var/lib/systemd/coredump`, find them with
+  `coredumpctl list mbd` and open the last one with `coredumpctl gdb
+  mbd`.
+- `|/usr/share/apport/apport`, the default on Ubuntu: apport drops the
+  core of a program that is not from a package, LavaLite daemons
+  included. Set the plain pattern above, or install
+  `systemd-coredump`.
+
+Choose per site policy; the plain pattern keeps everything LavaLite
+needs in one tree.
 
 ## Ownership and Permissions
 
@@ -340,13 +441,13 @@ maintains them.
 Typical ownership:
 
 ```text
-auth.key                   lavalite:lavalite 644
+ll.auth.key                lavalite:lavalite 644
 
 var/state/mbd              lavalite:lavalite 750
 var/state/mbd/manifest     lavalite:lavalite 640
 var/log                    lavalite:lavalite 755
 
-var/state/sbd              root:root         750
+var/state/sbd              root:root         755
 
 bin/bhist                  root:lavalite     2755
 ```
@@ -362,17 +463,17 @@ before starting any daemon.
 
 ## Install systemd Units
 
-Example systemd unit files are provided in `etc/` as a starting point
-for sites that use systemd. Review and modify them according to your
-site policy before installing.
+`make install` puts the units in `lib/systemd`. They are templates
+for the site to adapt:
+
+- Replace `<version>` in the paths with the installed tree, e.g.
+  `/opt/lavalite-2.0.0`.
+- `User=` in `lavalite-mbd.service` must be `LL_MBD_USER` of `ll.conf`.
 
 ```sh
-cp /opt/lavalite-<version>/lib/systemd/lavalite-mbd.service \
+cp /opt/lavalite-<version>/lib/systemd/lavalite-*.service \
     /etc/systemd/system/
-
-cp /opt/lavalite-<version>/lib/systemd/lavalite-sbd.service \
-    /etc/systemd/system/
-
+# edit <version> and User= in /etc/systemd/system/lavalite-*.service
 systemctl daemon-reload
 ```
 
@@ -387,6 +488,14 @@ Enable `sbd` on each execution host:
 ```sh
 systemctl enable --now lavalite-sbd
 ```
+
+Simulated hosts, a debug tool, run as `sbd -s <name>` on their
+`REAL_HOST`, by hand or with a copy of `lavalite-sbd-sim.service` per
+sim.
+
+All units restart their daemon when it dies (`Restart=on-failure`).
+`sbd` units use `KillMode=process`: running jobs survive a restart of
+`sbd`.
 
 ## Verification
 

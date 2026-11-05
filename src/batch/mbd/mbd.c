@@ -29,6 +29,7 @@ struct ll_hash queue_name_hash;
 struct ll_hash sbd_chan_hash;
 struct ll_list token_pool_list;
 struct ll_hash token_pool_name_hash;
+struct ll_list service_list;
 
 struct mbd_manager mbd_mgr;
 
@@ -74,6 +75,7 @@ static int mbd_init(void)
     ll_hash_init(&sbd_chan_hash, 1021);
     ll_list_init(&token_pool_list);
     ll_hash_init(&token_pool_name_hash, 1021);
+    ll_list_init(&service_list);
 
     if (conf_init() < 0) {
         LL_ERRX("conf_init failed");
@@ -226,6 +228,8 @@ int main(int argc, char **argv)
                 if (n < 0 && errno != EINTR)
                     LL_ERR("read timer failed");
                 LL_DEBUG("sched_timer expired timer=%d", sched_timer);
+                jobs_run_limit_check();
+                jobs_pid_timeout_check();
                 schedule();
                 maybe_rebuild_manifest();
                 continue;
@@ -247,6 +251,5 @@ int main(int argc, char **argv)
 void mbd_die(enum mbd_exit e)
 {
     LL_INFO("exiting with reason: %s", mbd_exit_str(e));
-    // mbd_compact_shutdown();
     exit(-1);
 }

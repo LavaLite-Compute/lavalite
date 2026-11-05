@@ -392,11 +392,11 @@ done:
     return 0;
 
 fail: {
-    int save_errno = errno;
-    fcntl(fd, F_SETFL, flags);
-    errno = save_errno;
-    return -1;
-}
+        int save_errno = errno;
+        fcntl(fd, F_SETFL, flags);
+        errno = save_errno;
+        return -1;
+    }
 }
 
 int chan_send_dgram(int chan_id, char *buf, size_t len,
@@ -574,6 +574,12 @@ int chan_rpc(int chan_id, struct chan_buffer *snd, struct chan_buffer *rcv,
         return -1;
     }
 
+    if (cc != (ssize_t)rcv->len) {
+        free(rcv->data);
+        errno = ECONNRESET;
+        return -1;
+    }
+
     return 0;
 }
 
@@ -592,8 +598,8 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
 
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER ||
-            chan->type == TIMER_FD) {
+        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER
+            || chan->type == TIMER_FD) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
@@ -729,7 +735,7 @@ ssize_t chan_read(int chan_id, void *buf, size_t len)
             continue;
         }
         if (cc == 0) {
-            errno = 0;
+            errno = ECONNRESET;
             return -1;
         }
         if (errno == EINTR)
@@ -821,8 +827,14 @@ int recv_protocol_header(int chan_id, struct protocol_header *hdr)
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
-    if (chan_read(chan_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
+    ssize_t cc = chan_read(chan_id, buf, PACKET_HEADER_SIZE);
+    if (cc < 0)
         return -1;
+
+    if (cc != PACKET_HEADER_SIZE) {
+        errno = ECONNRESET;
+        return -1;
+    }
 
     xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {

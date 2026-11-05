@@ -1,0 +1,48 @@
+
+# Begin Service
+# SERVICE_NAME = <name>
+# COMMAND      = <cmd>              # mandatory, full command line run by sh
+# PORT         = <port>             # mandatory
+# TOKEN_ENV    = <env name>         # optional, token exported under this name
+# QUEUE        = <queue>            # mandatory
+# RESTART      = always | never     # default always
+# RUNLIMIT     = [hours:]minutes    # optional, cap for bservices --time
+# End Service
+#
+# A block with an error (missing key, unknown queue, unknown key) is
+# not configured, mbd logs the reason and loads the others.
+#
+# COMMAND is passed as is to the job shell: container runtime, image,
+# binds are the site's choice. The job environment has HOME, USER and
+#   LL_SVC_PORT   the PORT the app must listen on
+#   LL_SVC_TOKEN  the instance token, when TOKEN_ENV is set
+# Keep the token out of the command line, ps shows argv to everyone:
+# prefer an app that reads it from TOKEN_ENV.
+
+Begin Service
+SERVICE_NAME = echotest
+COMMAND      = apptainer exec --bind $HOME /path/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
+PORT         = 8888
+RESTART      = always
+QUEUE        = service-2.0
+End Service
+
+Begin Service
+SERVICE_NAME = jupyter
+PORT         = 8888
+COMMAND      = apptainer exec --bind $HOME /export/service_images/jupyter-base.sif jupyter lab --ip=0.0.0.0 --port=$LL_SVC_PORT --no-browser
+TOKEN_ENV    = JUPYTER_TOKEN
+RESTART      = always
+RUNLIMIT     = 8:00
+QUEUE = service-2.0
+End Service
+
+Begin Service
+SERVICE_NAME = code-server
+PORT         = 8080
+COMMAND      = apptainer exec --bind $HOME /path/code-server.sif code-server --bind-addr 0.0.0.0:$LL_SVC_PORT --auth password
+TOKEN_ENV    = PASSWORD
+RESTART      = always
+RUNLIMIT     = 8:00
+QUEUE = service-2.0
+End Service

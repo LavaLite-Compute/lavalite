@@ -19,12 +19,13 @@ bjobs - display batch jobs
 # DESCRIPTION
 
 Displays information about batch jobs. Without options, shows active
-jobs for the current user.
+jobs for the current user. The administrator sees the jobs of all
+users.
 
 # OPTIONS
 
 **--all**
-:   Show active jobs for all users. Requires administrator privileges.
+:   Show jobs in every state, finished ones included.
 
 **--pend**
 :   Show pending jobs with the pending reason for each job.
@@ -58,12 +59,16 @@ Jobs are displayed in a table with the following columns:
 **STAT** values:
 
 - **PEND** — waiting to be dispatched
+- **DISP** — dispatched to a host, not started yet (no pid)
 - **RUN** — executing on a host
 - **DONE** — completed successfully (exit status 0)
 - **EXIT** — completed with non-zero exit status
 - **SUSP** — suspended job
 - **HELD** — held job, not eligible for dispatch
 - **UNKNOWN** — job state cannot currently be determined
+- **ORPHAN** — the job references a queue, service, host or token
+  pool no longer in the configuration; it is frozen until the configuration is fixed
+  and **mbd** restarted, see the administrator guide, *Orphan Jobs*
 
 ## Array Jobs
 

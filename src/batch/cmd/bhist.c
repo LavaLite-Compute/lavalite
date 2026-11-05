@@ -60,6 +60,8 @@ static const char *event_type_str(int32_t type)
         return "Resumed (pend)";
     case EVENT_JOB_SUSP:
         return "Suspended";
+    case EVENT_JOB_RESUME:
+        return "Resumed";
     case EVENT_JOB_MOVE:
         return "Moved queue";
     case EVENT_JOB_PRIORITY:
@@ -293,7 +295,7 @@ static void print_job_full(const struct job_hist_info *j)
 
     printf("  Requested resources:  %d host(s)  %d cpu(s)/host"
            "  %d gpu(s)/host  %lu MB mem\n",
-           j->num_hosts, j->num_cpus, j->num_gpus, (unsigned long) j->mem_mb);
+           j->num_hosts, j->num_cpus, j->num_gpus, j->mem_mb);
 
     if (j->gpu_model != NULL && j->gpu_model[0] != '\0')
         printf("  GPU model:    %s\n", j->gpu_model);
@@ -305,6 +307,9 @@ static void print_job_full(const struct job_hist_info *j)
         printf("  Begin:        %s\n", fmt_time(j->begin_time));
     if (j->term_time != 0)
         printf("  Terminate:    %s\n", fmt_time(j->term_time));
+    if (j->run_limit != 0)
+        printf("  Run limit:    %d:%02d\n", j->run_limit / 3600,
+               (j->run_limit % 3600) / 60);
 
     printf("\n");
 
@@ -326,6 +331,8 @@ static void print_job_full(const struct job_hist_info *j)
             continue;
         case EVENT_JOB_FORK:
             printf("  pid: %d", (int) e->pid);
+            if (e->service_port != 0)
+                printf(" port: %d", e->service_port);
             break;
         case EVENT_JOB_SIGNAL:
             printf("  signal: %d", e->signal);
@@ -351,8 +358,8 @@ static void print_job_full(const struct job_hist_info *j)
     if (j->usage.cpu_time > 0 || j->usage.mem_mb > 0) {
         printf("\n");
         printf("  CPU time:     %.2f sec\n", j->usage.cpu_time);
-        printf("  Max memory:   %lu MB\n", (unsigned long) j->usage.mem_mb);
-        printf("  Max swap:     %lu MB\n", (unsigned long) j->usage.swap_mb);
+        printf("  Max memory:   %lu MB\n", j->usage.mem_mb);
+        printf("  Max swap:     %lu MB\n", j->usage.swap_mb);
     }
 
     if (start == NULL && (j->state == JOB_DONE || j->state == JOB_EXITED))

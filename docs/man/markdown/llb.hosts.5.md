@@ -83,6 +83,14 @@ through Linux cgroups or other kernel mechanisms. GPU isolation is
 therefore cooperative: jobs are expected to respect the assigned
 **CUDA_VISIBLE_DEVICES** setting.
 
+A job on several hosts, **bsub --nhosts** *n* **--gpus** *m* with *n*
+above 1, holds *m* GPUs on every host, but gets no
+**CUDA_VISIBLE_DEVICES**: the processes it starts on the other hosts,
+with **mpirun** or **torchrun**, would not get it from LavaLite. Run
+such a job with **--exclusive** and ask for all the GPUs of each host:
+every GPU of a host is then the job's, and the framework picks one per
+process by its local rank.
+
 ## Begin TokenPool / End TokenPool
 
 Defines floating token pools for license or resource gating.
@@ -104,7 +112,9 @@ Jobs request tokens with **bsub --tokens**.
 ## Begin HostGroup / End HostGroup
 
 Defines named groups of hosts. Host groups are referenced by
-**HOSTS** in **llb.queues** and by **bsub --machines**.
+**HOSTS** in **llb.queues** and by **bsub --machines**. No host, sim
+or group may be named **all**: the name is reserved for **HOSTS = all**
+in **llb.queues**, and mbd refuses to start.
 
     Begin HostGroup
     GROUP_NAME    GROUP_MEMBER
@@ -113,7 +123,7 @@ Defines named groups of hosts. Host groups are referenced by
     End HostGroup
 
 **GROUP_NAME**
-:   Name of the host group.
+:   Name of the host group. **all** is reserved, see **llb.queues**(5).
 
 **GROUP_MEMBER**
 :   Parenthesised, space-separated list of host names belonging to
@@ -122,23 +132,22 @@ Defines named groups of hosts. Host groups are referenced by
 ## Begin Sim / End Sim
 
 Defines simulated hosts for testing without real execution hardware.
-Simulated hosts are registered by **sbd --simulator**.
+A simulated host runs as **sbd -s** *name* on its **REAL_HOST**, and
+registers with **mbd** under that name.
 
 ```
 Begin Sim
-NAME          REAL_HOST   PORT  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
-sim1          buntu24   33126     8  20G    100G      A100      0-1
+NAME          REAL_HOST   CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
+sim1          buntu24       8  20G    100G      A100      0-1
 End Sim
 ```
 
 **NAME**
-:   Name the simulated host registers as with **mbd**.
+:   Name the simulated host registers as with **mbd**. It must be
+    unique: a second **sbd** with the same name is rejected by **mbd**.
 
 **REAL_HOST**
 :   Physical host where the simulating **sbd** process runs.
-
-**PORT**
-:   Port the simulating **sbd** listens on.
 
 **CPU**, **MEM**, **STORAGE**, **GPU_MODEL**, **GPU_IDS**
 :   Same meaning as in the **Host** section.

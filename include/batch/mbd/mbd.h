@@ -20,6 +20,7 @@ enum job_list_id {
     JOB_LIST_PEND,
     JOB_LIST_RUN,
     JOB_LIST_FINISH,
+    JOB_LIST_ORPHAN, /* frozen, see replay_mark_orphans() */
 };
 
 // mbd_die exit value
@@ -59,6 +60,9 @@ struct job_resources {
     struct ll_list tokens;
 };
 
+/* full definition below, after struct service_data */
+struct service_instance;
+
 struct job_data {
     struct ll_list_entry ent;
     int64_t job_id;
@@ -72,12 +76,18 @@ struct job_data {
     time_t submit_time;   /* bsub received                      */
     time_t dispatch_time; /* mbd sent BATCH_NEW_JOB to sbd      */
     time_t fork_time;     /* sbd forked, pid received by mbd    */
+    time_t pid_wait_time; /* waiting for the pid since, not logged,
+                           * set at dispatch and at sbd register,
+                           * 0 once the pid is received             */
     time_t end_time;      /* job exited (DONE or EXIT)          */
     time_t susp_time;
     time_t unknown_time;
     time_t begin_time;
-    time_t term_time;
+    time_t term_time;   /* absolute deadline, enforced by sbd      */
     time_t signal_time;
+    int32_t run_limit;  /* seconds, enforced by mbd, 0 = none      */
+    time_t run_start;   /* first fork_time, kept across relocations,
+                         * the run limit counts from here            */
     struct mbd_queue *queue;
     char project[LL_BUFSIZ_256];
     char name[LL_BUFSIZ_64];
@@ -101,6 +111,11 @@ struct job_data {
      * Blocks compaction from purging the head while > 0 — see
      * job_move_list()/events_rebuild(). Zero on ordinary jobs. */
     int32_t array_element_cnt;
+    /* NULL for ordinary jobs. Set by service_start_instance() right
+     * after job_prepare(), before job_commit(). Same job_id/job_data
+     * is reused across service restarts, so this never needs
+     * updating once set -- see service_instance.job_id instead. */
+    struct service_instance *svc_inst;
 };
 
 struct gpu_id {
@@ -133,9 +148,9 @@ struct host_resources {
     int total_cpu;
     int free_cpu;
     uint64_t total_mem_mb;
-    uint64_t free_mem_mb;
+    int64_t free_mem_mb;      /* < 0: capacity lowered under running jobs */
     uint64_t total_storage_mb;
-    uint64_t free_storage_mb;
+    int64_t free_storage_mb;
     struct mbd_gpu gpu;
 };
 
@@ -144,7 +159,6 @@ struct mbd_host {
     struct ll_list_entry ent;
     struct ll_host net;        /* resolved network identity */
     struct host_resources res; /* capacity + availability + gpu_list */
-    uint16_t port;             /* 0 = use LL_SBD_PORT; sim override otherwise */
     int host_idx;              /* dense index assigned at conf_init */
     int state;
     int candidate; /* set by mark_candidates() each sched cycle */
@@ -154,15 +168,9 @@ struct mbd_host {
     int num_susp;
     int sbd_chan;      /* -1 if not connected */
     int num_cpus_used; /* CPUs consumed by running jobs on this host */
-};
-
-struct queue_conf {
-    char name[LL_BUFSIZ_64];
-    char desc[LL_BUFSIZ_256];
-    char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
-    char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
-    int priority;
-    int state;
+    time_t taint_time; /* HOST_TAINTED set at, 0 if not tainted */
+    int stale;         /* not in the config, built by replay for jobs
+                        * that reference it, never registers an sbd */
 };
 
 struct mbd_queue {
@@ -172,7 +180,7 @@ struct mbd_queue {
     char hosts_spec[LL_BUFSIZ_4K];
     char users[LL_BUFSIZ_4K];
     int priority;
-    int max_jobs;
+    int max_jobs; /* max concurrent jobs, -1 = unlimited */
     int num_jobs;
     int num_pend;
     int num_run;
@@ -184,6 +192,8 @@ struct mbd_queue {
     struct ll_hash host_hash; /* expanded host membership, keyed by hostname */
     struct ll_hash
         user_hash; /* expanded user membership, empty = all allowed */
+    int stale;     /* not in the config, built by replay for jobs that
+                    * reference it, never dispatches */
 };
 
 struct mbd_group {
@@ -207,6 +217,13 @@ struct mbd_token_pool {
 #define JOB_BUCKETS 10
 #define SCHED_PLAN_MAX 1024
 #define SCHED_TIMER 2
+/* seconds a connected sbd has to report the pid of a dispatched job,
+ * also the period of the check */
+#define PID_TIMEOUT 20
+/* seconds a host stays tainted after its sbd rejected a job */
+#define TAINT_TIME 60
+/* seconds between checks of the finished job threshold */
+#define MANIFEST_CHECK_TIME 300
 
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
@@ -229,12 +246,55 @@ struct pend_diag {
     int host_overflow;
 };
 
+enum service_restart {
+    LL_SERVICE_RESTART_ALWAYS,
+    LL_SERVICE_RESTART_NEVER
+};
+
+/*
+ * One service definition, as loaded from llb.services (one entry per
+ * Begin Service block). This is configuration state only — running
+ * instances (svc_id, external port, backing job_id, run_host) are
+ * tracked separately by service.c's own registry, not here.
+ */
+struct service_data {
+    struct ll_list_entry ent;    /* linkage in service_list, must be first */
+    char name[LL_BUFSIZ_64];
+    char command[LL_BUFSIZ_1K]; /* full command line, run by sh */
+    int port;
+    int32_t run_limit;           /* RUNLIMIT seconds, 0 = none */
+    char queue[LL_BUFSIZ_64];
+    enum service_restart restart;
+    char token_env[LL_BUFSIZ_64]; /* TOKEN_ENV: env name the app reads its
+                                   * token from, empty means no token */
+    struct ll_list instances;    /* active instances of this service */
+    int stale;                   /* not in the config, built by replay */
+};
+
+struct service_instance {
+    struct ll_list_entry ent;    /* linkage in service_data.instances */
+    struct service_data *svc;    /* owning service definition */
+    uid_t uid;                   /* the userid running the service */
+    int port;    /* external port on run_host, picked by sbd and recorded
+                  * from BATCH_NEW_JOB_REPLY, reset to 0 on restart */
+    int64_t job_id;
+    char run_host[LL_BUFSIZ_64];  /* set at RUNNING, reset on restart */
+    char token[LL_BUFSIZ_64];     /* per instance secret, kept across
+                                   * restarts, logged in JOB_NEW */
+    int chan_id;    /* client waiting on the deferred BATCH_SERVICE_START_ACK,
+                     * -1 once acked, after restart and after replay */
+    struct wire_job_submit pend_ws;
+    struct protocol_header pend_hdr;
+    enum svc_status status;
+};
+
 extern int64_t job_id_seq;
 extern struct ll_hash job_id_hash;
 
 extern struct ll_list pend_jobs_list;
 extern struct ll_list run_jobs_list;
 extern struct ll_list finish_jobs_list;
+extern struct ll_list orphan_jobs_list;
 
 extern struct ll_list host_list;
 extern struct ll_hash host_name_hash;
@@ -250,6 +310,8 @@ extern struct ll_hash token_pool_name_hash;
 
 extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
+
+extern struct ll_list service_list;
 
 extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
@@ -294,6 +356,7 @@ void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
+void event_job_resume(const struct job_data *);
 void maybe_rebuild_manifest(void);
 void event_job_move(const struct job_data *, const char *);
 void event_job_priority(const struct job_data *, int32_t);
@@ -306,6 +369,9 @@ int hosts_info(XDR *, int);
 int queues_info(XDR *, int);
 int host_group_info(XDR *, int);
 int tokens_info(XDR *, int);
+int service_start(XDR *, int, const struct protocol_header *);
+int services_info(XDR *, int, const struct protocol_header *);
+int service_delete(XDR *, int, const struct protocol_header *);
 
 // admin.c
 int host_admin(XDR *, int, const struct protocol_header *);
@@ -313,12 +379,16 @@ int queue_admin(XDR *, int, const struct protocol_header *);
 
 // job.c
 void job_register(XDR *, int, const struct protocol_header *);
+struct job_data *job_prepare(struct wire_job_submit *, const struct wire_job_script *,
+                             const struct protocol_header *, int *);
+void job_commit(struct job_data *, struct wire_job_submit *);
 int job_move(XDR *, int, const struct protocol_header *);
 int job_priority(XDR *, int, const struct protocol_header *);
 int jobs_signal(XDR *, int, const struct protocol_header *);
 int jobs_replay(void);
 void new_job_reply(XDR *, int32_t);
 int job_init(void);
+void mbd_job_finish(struct mbd_host *, XDR *);
 void job_move_list(struct job_data *, struct ll_list *, struct ll_list *,
                    enum job_list_id);
 void job_array_element_finished(struct job_data *);
@@ -342,12 +412,18 @@ int job_dep_satisfied(const struct job_data *);
 void job_deps_hold(struct job_data *);
 void job_deps_release(struct job_data *);
 void job_replay_deps(struct job_data *, const char *);
+int job_parse_tokens(struct job_data *, const char *, int);
+int signal_pending_job(struct job_data *, const struct wire_job_sig *);
+int signal_running_job(struct job_data *, const struct wire_job_sig *);
+int job_time_expired(const struct job_data *, time_t);
+void job_expire_pending(struct job_data *);
+void jobs_run_limit_check(void);
+void jobs_pid_timeout_check(void);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *, struct protocol_header *);
-void mbd_job_finish(struct mbd_host *, XDR *);
 void mbd_job_missing(struct mbd_host *, XDR *);
 
 // debug counters
@@ -360,3 +436,15 @@ int host_state_init(void);
 int queue_admin(XDR *, int, const struct protocol_header *);
 void queue_state_write(const struct mbd_queue *);
 int queue_state_init(void);
+
+// service.c
+int service_start_instance(const struct protocol_header *, int,
+                           const struct wire_svc_start *);
+int service_collect_info(uid_t, int, struct wire_svc_info **);
+int service_delete_instance(uid_t, int64_t, const char *, int32_t);
+void service_job_running(struct job_data *, struct mbd_host *, int32_t);
+int service_instance_finish(struct service_instance *);
+void service_pending_finished(struct service_instance *);
+struct service_data *svc_find_by_name(const char *);
+int job_is_service(const struct job_data *);
+void service_invalidate_chan(int);

@@ -65,7 +65,9 @@ desktop session or display server are not propagated.
     integer (MB) or a suffix: K, M, G. Example: **--storage 100G**.
 
 **--gpus** *n*
-:   Request *n* GPUs per host. Default is 0.
+:   Request *n* GPUs per host. Default is 0. With **--nhosts** above 1
+    the job gets no **CUDA_VISIBLE_DEVICES**: run it with **--exclusive**
+    and all the GPUs of each host, see **llb.hosts**(5).
 
 **--gpu-model** *name*
 :   Require a specific GPU model, as defined in llb.hosts. Example:
@@ -126,6 +128,12 @@ desktop session or display server are not propagated.
 :   Terminate the job at the specified deadline. The job receives SIGUSR2
     and is killed if it does not exit within one minute.
 
+**--time** [*hours*:]*minutes*
+:   Run limit, counted from the moment the job starts executing; time
+    spent pending or being dispatched does not count. When the limit is
+    reached mbd sends SIGTERM, then SIGKILL one minute later. A job that
+    is redispatched keeps counting from its first start.
+
 **--dependency** *expr*
 :   Hold the job until *expr* evaluates true. *expr* is built from the
     terms **done(**_id_**)**, **exit(**_id_**)**, and **ended(**_id_**)**,
@@ -144,9 +152,11 @@ desktop session or display server are not propagated.
 
 # OUTPUT
 
-On successful submission, prints the job ID and queue name to stdout:
+On successful submission, prints the job ID to stdout, with the queue
+name when **--queue** was given:
 
     Job <42> is submitted to queue <normal>.
+    Job <43> is submitted to the default queue.
 
 # EXAMPLES
 

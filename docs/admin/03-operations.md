@@ -164,10 +164,70 @@ queue.
 This allows the scheduler to retry the job on a subsequent
 dispatch attempt.
 
+`sbd` rejects a job only for its own failures, before the job
+starts: it cannot create the job directories, write the job
+script, set up the service namespace, or fork. The host is
+then tainted for 60 seconds and receives no new jobs, so the
+job is dispatched to another host. `bhosts` shows the host as
+`ok|tainted`.
+
+The taint clears by itself, or when `sbd` reconnects. A host
+that keeps getting tainted has a local problem, such as a full
+disk; check the `sbd` log on that host.
+
 A launch failure is not considered a user job failure.
 
 If the user command starts successfully and later exits with
 a non-zero status, the job is reported as `EXIT`.
+
+## Unresponsive Execution Hosts
+
+When `mbd` dispatches a job, the job shows as `DISP` in `bjobs`
+until `sbd` reports the pid of the started job. A healthy `sbd`
+reports it within a few seconds and keeps resending it until
+`mbd` acknowledges it.
+
+If a connected `sbd` does not report the pid within 20 seconds,
+`mbd` treats it as unresponsive and closes the connection:
+
+- The host shows as `unavail` in `bhosts`.
+- All jobs on the host show as `UNKNOWN` in `bjobs`.
+- No job is killed or requeued.
+
+`mbd` logs the event:
+
+```
+job=N no pid from sbd=HOST in S secs, disconnecting it
+```
+
+When `sbd` reconnects and registers again, the job state is
+resynchronized:
+
+- If the job is running, `sbd` reports the pid and the job
+  becomes `RUN`.
+- If `sbd` has no record of the job, the job returns to the
+  pending queue and is dispatched again.
+
+The usual cause is a network problem between `mbd` and the
+execution host: messages lost in one direction are often lost
+in the other as well. `sbd` may not see the disconnect at once.
+It notices when its own sends fail, which depends on the TCP
+retransmission and keepalive settings of the host.
+
+If the host does not come back, check:
+
+- Network connectivity between the `mbd` host and the
+  execution host.
+- `sbd` status on the execution host:
+
+```sh
+systemctl status lavalite-sbd
+```
+
+- The `mbd` and `sbd` logs.
+
+Restarting `sbd` forces a new registration and resynchronizes
+the jobs.
 
 ## Cluster Health Checks
 
@@ -273,7 +333,30 @@ Administrative operations should never modify files in:
 LL_STATE_DIR
 ```
 
-while daemons are running.
+while daemons are running. The one exception is the manifest
+archives, below.
+
+### Manifest Archives
+
+`mbd` compacts its event log, `var/state/mbd/manifest`, when
+`LL_MBD_JOB_FINISH_THRESHOLD` finished jobs are older than
+`LL_MBD_JOB_FINISH_PERIOD`, checked every 5 minutes: it writes the
+live jobs and the recent finished ones into a new `manifest`, drops
+the old finished ones, and renames the old file `manifest.N`, with N
+growing by one each time.
+
+The archives are history only. `mbd` never reads them, `bhist` reads
+all of them, oldest first, on every call. They are never removed by
+LavaLite: keeping or removing them is site policy. Remove old archives
+when their history is no longer needed, for example from cron:
+
+```sh
+find /opt/lavalite-<version>/var/state/mbd -name 'manifest.*' -mtime +30 -delete
+```
+
+This is safe while `mbd` runs. Never remove or edit the live
+`manifest`: it is the scheduler state. `bhist` no longer shows the
+events of a removed archive.
 
 ## Event Replay
 
@@ -294,6 +377,58 @@ bhist
 ```
 
 Verify that jobs remain visible after restart.
+
+## Orphan Jobs
+
+A job is an orphan when it references a queue, a service, a host or
+a token pool that is no longer in the configuration. This happens when the
+configuration is changed while the job is pending or running, and
+`mbd` is restarted.
+
+`mbd` replays the full history of the job and logs what is missing:
+
+```
+queue=QUEUE not in the config, stale
+job=N state=RUN queue=QUEUE is orphan: it references a queue,
+service or host not in the config, frozen until the config is fixed
+```
+
+An orphan is frozen:
+
+- `bjobs` shows it as `ORPHAN`, with its queue and run host.
+- It is not scheduled. It still holds what it held: a running orphan
+  keeps its cpus, memory and tokens, and counts in its queue and on
+  its hosts, as long as those are still in the configuration.
+- `bmove` and `bpriority` are refused. `bkill` is refused except
+  `bkill -s kill`, which ends the job for good, see below.
+- Messages from `sbd` about the job are logged and not acknowledged.
+  `sbd` keeps the job, and its exit status, and keeps reporting it.
+- An `sbd` running on a host removed from the configuration cannot
+  register.
+
+Nothing about the job is lost. If the job is running, it keeps
+running on its host.
+
+To recover, restore the missing queue, service, host or token pool
+in the configuration and restart `mbd`:
+
+```sh
+systemctl restart lavalite-mbd
+```
+
+The job replays as it was: pending, or running on its host with its
+pid. `sbd` reports what happened in the meantime, for example that
+the job finished, and the job continues normally.
+
+If the missing queue, service, host or token pool is gone for good,
+end the orphan instead:
+
+```sh
+bkill -s kill <jobid>
+```
+
+The job enters EXIT and releases what it held. If it was running on
+a host that can still be reached, `sbd` kills it there.
 
 ## Recovery Validation
 

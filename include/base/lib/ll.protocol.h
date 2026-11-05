@@ -6,27 +6,8 @@
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
-/*
- * Protocol Version Encoding
- * =========================
- * Format: 0xMMmmPPbb
- *
- *   MM = Major version   (8 bits)
- *   mm = Minor version   (8 bits)
- *   PP = Patch version   (8 bits)
- *   bb = Build/reserved  (8 bits, usually 0)
- *
- * Examples:
- *   0.1.0  → 0x00010000
- *   0.2.0  → 0x00020000
- *   0.2.3  → 0x00020300
- *   1.0.0  → 0x01000000
- *   1.10.5 → 0x010A0500
- *
- * Update this when you bump the version in AC_INIT.
- */
-#define PROTOCOL_VERSION 0x00020000
-#define CURRENT_PROTOCOL_VERSION PROTOCOL_VERSION
+#define LL_PROTOCOL_VERSION 2
+#define CURRENT_PROTOCOL_VERSION LL_PROTOCOL_VERSION
 
 // For the  wire take this liberty
 #define true 1
@@ -35,7 +16,7 @@
 struct protocol_header {
     int32_t sequence;   /* request/response correlation */
     int32_t operation;  /* message type / opcode */
-    int32_t version;    /* e.g. 0x00020000 */
+    int32_t version;    /* e.g. 2 */
     int32_t length;     /* payload bytes */
     int32_t status;     /* 0 ok, errno on error */
     uint32_t uid;       /* caller uid */

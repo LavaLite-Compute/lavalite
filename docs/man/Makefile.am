@@ -11,11 +11,13 @@ MAN1 = man1/bhosts.1 \
        man1/btokens.1 \
        man1/bhist.1 \
        man1/bpriority.1 \
-       man1/bmove.1
+       man1/bmove.1 \
+       man1/bservices.1
 
 MAN5 = man5/ll.conf.5 \
        man5/llb.hosts.5 \
-       man5/llb.queues.5
+       man5/llb.queues.5 \
+       man5/llb.services.5
 
 MAN7 = man7/lavalite.7
 
@@ -38,9 +40,11 @@ EXTRA_DIST = \
 	markdown/bhist.1.md \
 	markdown/bpriority.1.md \
 	markdown/bmove.1.md \
+	markdown/bservices.1.md \
 	markdown/ll.conf.5.md \
 	markdown/llb.hosts.5.md \
 	markdown/llb.queues.5.md \
+	markdown/llb.services.5.md \
 	markdown/lavalite.7.md \
 	markdown/mbd.8.md \
 	markdown/sbd.8.md
@@ -58,10 +62,12 @@ man1/btokens.1:  markdown/btokens.1.md
 man1/bhist.1:    markdown/bhist.1.md
 man1/bpriority.1:  markdown/bpriority.1.md
 man1/bmove.1:    markdown/bmove.1.md
+man1/bservices.1:    markdown/bservices.1.md
 
 man5/ll.conf.5:    markdown/ll.conf.5.md
 man5/llb.hosts.5:  markdown/llb.hosts.5.md
 man5/llb.queues.5: markdown/llb.queues.5.md
+man5/llb.services.5: markdown/llb.services.5.md
 
 man7/lavalite.7: markdown/lavalite.7.md
 
@@ -70,4 +76,4 @@ man8/sbd.8: markdown/sbd.8.md
 
 $(MAN1) $(MAN5) $(MAN7) $(MAN8):
 	@mkdir -p $(dir $@)
-	$(PANDOC) -s -t man $< -o $@
+	$(PANDOC) -f markdown-smart -s -t man $< -o $@

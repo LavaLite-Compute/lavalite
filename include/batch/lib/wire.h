@@ -74,6 +74,7 @@ struct wire_job_reply {
     int32_t pid;
     int32_t pgid;
     int32_t state;
+    int32_t ext_port; /* service jobs: endpoint port picked by sbd */
 };
 
 /* -----------------------------------------------------------------------
@@ -88,6 +89,7 @@ struct wire_job_start {
     uint32_t uid;
     uint32_t gid;
     uint32_t umask;
+    int32_t flags;
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];
     char username[LL_BUFSIZ_64];
@@ -104,6 +106,9 @@ struct wire_job_start {
     uint64_t mem_mb;
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
+    int32_t app_port;         /* service jobs: service's internal listen port */
+    char token_env[LL_BUFSIZ_64]; /* service jobs: env name for token */
+    char token[LL_BUFSIZ_64];     /* service jobs: instance token */
     struct wire_job_script script;   /* job script, encoded last */
 };
 
@@ -161,6 +166,7 @@ struct wire_job_submit {
     uint32_t flags;
     int64_t begin_time;
     int64_t term_time;
+    int32_t run_limit; /* --time, seconds, 0 = none */
     int64_t susp_time;
     int64_t resume_time;
     int32_t array_start;
@@ -328,6 +334,60 @@ struct wire_job_priority {
 };
 
 /* -----------------------------------------------------------------------
+ * service info  (mbd -> client)
+ * ----------------------------------------------------------------------- */
+
+struct wire_svc_info_array {
+    uint32_t nsvc;
+    struct wire_svc_info *svc;
+};
+
+struct wire_svc_info {
+    char name[LL_BUFSIZ_64];
+    char queue[LL_BUFSIZ_64];
+    int32_t restart_never;
+    int32_t port;
+    int32_t run_limit;
+    char token_env[LL_BUFSIZ_64];
+    char command[LL_BUFSIZ_1K];
+    int32_t num_run; /* instance counts, all users */
+    int32_t num_pend;
+    int32_t num_finish;
+    uint32_t ninstances;
+    struct wire_svc_instance_info *instances;
+};
+
+struct wire_svc_instance_info {
+    char service[LL_BUFSIZ_64];
+    uint32_t uid;
+    int32_t port;
+    char run_host[MAXHOSTNAMELEN];
+    int64_t job_id;
+    int32_t status;
+    char token[LL_BUFSIZ_64]; /* empty unless the requester owns it */
+};
+
+struct wire_svc_start {
+    char name[LL_BUFSIZ_64]; /* service definition name, from llb.services */
+    /* submission context, filled client-side (llb_service_start(), same
+     * convention as wire_job_submit -- see comment above it), never
+     * looked up mbd-side. cwd is deliberately not a separate field: a
+     * service has no meaningful launch directory, so service.c roots
+     * it at home_dir. */
+    char username[LL_BUFSIZ_64];
+    char home_dir[PATH_MAX];
+    int32_t run_limit; /* --time, seconds, 0 = the service RUNLIMIT */
+};
+
+/* job_id != 0 selects by job, otherwise host:port of a running
+ * instance */
+struct wire_svc_delete {
+    int64_t job_id;
+    char host[MAXHOSTNAMELEN];
+    int32_t port;
+};
+
+/* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
 
@@ -371,3 +431,10 @@ bool_t xdr_wire_token_info_array(XDR *, struct wire_token_info_array *);
 
 bool_t xdr_wire_job_move(XDR *, struct wire_job_move *);
 bool_t xdr_wire_job_priority(XDR *, struct wire_job_priority *);
+
+/* service */
+bool_t xdr_wire_svc_info_array(XDR *, struct wire_svc_info_array *);
+bool_t xdr_wire_svc_info(XDR *, struct wire_svc_info *);
+bool_t xdr_wire_svc_instance_info(XDR *, struct wire_svc_instance_info *);
+bool_t xdr_wire_svc_start(XDR *, struct wire_svc_start *);
+bool_t xdr_wire_svc_delete(XDR *, struct wire_svc_delete *);

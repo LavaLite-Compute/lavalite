@@ -41,11 +41,15 @@ static int build_sbd_run_list(struct mbd_host *n,
         return -1;
     }
 
+    time_t now = time(NULL);
     int i = 0;
     for (e = run_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
         if (job->run_hosts[0] != n)
             continue;
+        /* sbd syncs up on this list, restart the pid wait */
+        if (job->pid == 0)
+            job->pid_wait_time = now;
         reg_ack->jobs[i].job_id = job->job_id;
         reg_ack->jobs[i].pid = (int32_t) job->pid;
         i++;
@@ -75,35 +79,38 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     /* done with wire data */
     xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg);
 
-    struct mbd_host *n = ll_hash_search(&host_name_hash, hostname);
-    if (n == NULL) {
+    struct mbd_host *host = ll_hash_search(&host_name_hash, hostname);
+    if (host == NULL) {
         LL_ERRX("register from unknown host %s", hostname);
         chan_shutdown(chan_id);
         return -1;
     }
 
-    if (n->sbd_chan != -1) {
+    if (host->sbd_chan != -1) {
         LL_ERRX("duplicate sbd registration from host=%s "
                 "(already on chan=%d), rejecting",
-                hostname, n->sbd_chan);
+                hostname, host->sbd_chan);
         chan_shutdown(chan_id);
         return -1;
     }
-    n->sbd_chan = chan_id;
+    host->sbd_chan = chan_id;
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", chan_id);
-    ll_hash_insert(&sbd_chan_hash, key, n, 0);
+    ll_hash_insert(&sbd_chan_hash, key, host, 0);
 
     struct wire_sbd_register reg_ack;
     memset(&reg_ack, 0, sizeof(reg_ack));
-    if (build_sbd_run_list(n, &reg_ack) < 0) {
-        LL_ERRX("host=%s build_sbd_run_list failed", n->net.name);
-        mbd_sbd_disconnect(n);
+    if (build_sbd_run_list(host, &reg_ack) < 0) {
+        LL_ERRX("host=%s build_sbd_run_list failed", host->net.name);
+        mbd_sbd_disconnect(host);
         return -1;
     }
-    n->state = HOST_OK | (n->state & HOST_CLOSED);
+
+    /* a fresh sbd starts clean: HOST_TAINTED is cleared */
+    host->state = HOST_OK | (host->state & HOST_CLOSED);
+    host->taint_time = 0;
     LL_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d", hostname,
-            n->net.name, n->net.addr, chan_id, n->state);
+            host->net.name, host->net.addr, chan_id, host->state);
 
     struct protocol_header hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -113,15 +120,19 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     if (auth_sign_header(&hdr) < 0) {
         LL_ERR("auth_sign_header failed");
         xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg_ack);
-        mbd_sbd_disconnect(n);
+        mbd_sbd_disconnect(host);
         return -1;
     }
 
-    size_t siz = sizeof(struct protocol_header) + MAXHOSTNAMELEN +
-                 sizeof(int32_t) +
-                 reg_ack.num_jobs * sizeof(struct wire_sbd_job) + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_sbd_register, &reg_ack);
 
-    enqueue_payload(chan_id, &hdr, &reg_ack, siz, xdr_wire_sbd_register);
+    if (enqueue_payload(chan_id, &hdr, &reg_ack, siz, xdr_wire_sbd_register) < 0) {
+        LL_ERRX("failed enqueue ack sbd register to host=%s", host->net.name);
+        xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg_ack);
+        mbd_sbd_disconnect(host);
+        return -1;
+    }
 
     xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg_ack);
     return 0;
@@ -213,7 +224,9 @@ int mbd_sbd_disconnect(struct mbd_host *n)
             n->net.name, n->net.addr);
 
     n->sbd_chan = -1;
+    /* HOST_TAINTED is cleared, the host is unavail anyway */
     n->state = HOST_UNAVAIL | (n->state & HOST_CLOSED);
+    n->taint_time = 0;
 
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", chan_id);
@@ -304,13 +317,13 @@ static int read_script(const struct job_data *job,
     }
 
     if (st.st_size == 0) {
-        LL_ERRX("job_id=%ld script is empty", job->job_id);
+        LL_ERRX("job=%ld script is empty", job->job_id);
         return -1;
     }
 
     script->data = malloc((size_t) st.st_size + 1);
     if (script->data == NULL) {
-        LL_ERR("malloc failed size=%ld", (long) st.st_size);
+        LL_ERR("malloc failed size=%ld", st.st_size);
         return -1;
     }
 
@@ -326,8 +339,8 @@ static int read_script(const struct job_data *job,
     fclose(fp);
 
     if (nr != (size_t) st.st_size) {
-        LL_ERR("job_id=%ld script read short %zu/%ld", job->job_id, nr,
-               (long) st.st_size);
+        LL_ERR("job=%ld script read short %zu/%ld", job->job_id, nr,
+               st.st_size);
         free(script->data);
         script->data = NULL;
         return -1;
@@ -387,7 +400,7 @@ int mbd_dispatch_job(struct job_data *job)
 
     assert(h->sbd_chan > 0);
     if (h->sbd_chan < 0) {
-        LL_ERRX("job_id=%ld exec_host=%s sbd not connected", job->job_id,
+        LL_ERRX("job=%ld exec_host=%s sbd not connected", job->job_id,
                 h->net.name);
         return -1;
     }
@@ -397,26 +410,37 @@ int mbd_dispatch_job(struct job_data *job)
 
     /* read file redirections from sidecar */
     if (read_sidecar(job, &ws) < 0) {
-        LL_ERRX("job_id=%ld read_sidecar failed", job->job_id);
+        LL_ERRX("job=%ld read_sidecar failed", job->job_id);
         abort();
         return -1;
     }
 
     /* read script from disk into ws.script */
     if (read_script(job, &ws.script) < 0) {
-        LL_ERRX("job_id=%ld read_script failed", job->job_id);
+        LL_ERRX("job=%ld read_script failed", job->job_id);
         abort();
         return -1;
     }
 
     /* fill wire_job_start from job_data and sched_plan */
     ws.job_id = job->job_id;
+    ws.flags = job->flags;
     ws.uid = job->uid;
     ws.gid = job->gid;
     ws.term_time = (int64_t) job->term_time;
     ws.gpus_per_host = job->res.num_gpus;
     ws.ncpus = job->res.num_cpus;
     ws.mem_mb = job->res.mem_mb;
+
+    if (job->svc_inst != NULL) {
+        /* the external port is picked by sbd and comes back
+         * in BATCH_NEW_JOB_REPLY
+         */
+        ws.app_port = job->svc_inst->svc->port;
+        ll_strlcpy(ws.token_env, job->svc_inst->svc->token_env,
+                   sizeof(ws.token_env));
+        ll_strlcpy(ws.token, job->svc_inst->token, sizeof(ws.token));
+    }
 
     ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));
     ll_strlcpy(ws.queue, job->queue->name, sizeof(ws.queue));
@@ -431,6 +455,13 @@ int mbd_dispatch_job(struct job_data *job)
                                sizeof(ws.gpu_assigned));
         ll_strlcpy(job->gpu_assigned, ws.gpu_assigned,
                    sizeof(job->gpu_assigned));
+        /* the job holds num_gpus on every host, as reset_host_resources()
+         * frees and the replay charges them. Which ids it uses there
+         * only its own processes know, gpu_assigned names the first
+         * host's */
+        for (int i = 1; i < job->run_nhosts; i++)
+            gpu_ids_mark_inuse(&job->run_hosts[i]->res.gpu,
+                               job->res.num_gpus);
     }
 
     struct protocol_header hdr;
@@ -439,18 +470,18 @@ int mbd_dispatch_job(struct job_data *job)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERRX("job_id=%ld auth_sign_header failed", job->job_id);
+        LL_ERRX("job=%ld auth_sign_header failed", job->job_id);
         free(ws.script.data);
         return -1;
     }
 
     /* buffer size: fixed struct + script payload + XDR overhead */
-    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_job_start) +
-                   ws.script.len + LL_BUFSIZ_64;
+    size_t bufsz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_job_start, &ws);
 
     if (enqueue_payload(h->sbd_chan, &hdr, &ws, bufsz,
                         (bool_t(*)()) xdr_wire_job_start) < 0) {
-        LL_ERRX("job_id=%ld enqueue_payload failed", job->job_id);
+        LL_ERRX("job=%ld enqueue_payload failed", job->job_id);
         free(ws.script.data);
         return -1;
     }
@@ -458,13 +489,15 @@ int mbd_dispatch_job(struct job_data *job)
     free(ws.script.data);
 
     job->dispatch_time = time(NULL);
+    job->pid_wait_time = job->dispatch_time;
     job->state = JOB_RUNNING;
 
     event_job_start(job);
 
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LL_INFO("job_id=%ld dispatched to host=%s", job->job_id, h->net.name);
+    LL_INFO("job=%ld flags=0x%x dispatched to host=%s", job->job_id,
+            job->flags, h->net.name);
 
     return 0;
 }
@@ -486,23 +519,24 @@ void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
 
     struct job_data *job = job_find(s.job_id);
     if (job == NULL) {
-        LL_ERRX("cannot find job_id=%ld", s.job_id);
+        LL_ERRX("cannot find job=%ld", s.job_id);
         return;
     }
 
-    // Add the guard for the state
-    if (job->state == JOB_ORPHAN) {
-        LL_INFO("job_id=%ld already orphan", job->job_id);
+    /* frozen, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, missing report from sbd=%s ignored",
+                job->job_id, n->net.name);
         return;
     }
     if (job->run_nhosts <= 0 || job->run_hosts[0] != n) {
-        LL_ERRX("job_id=%ld missing report from wrong host=%s", s.job_id,
+        LL_ERRX("job=%ld missing report from wrong host=%s", s.job_id,
                 n->net.name);
         return;
     }
 
     if (job->state != JOB_RUNNING && job->state != JOB_SUSPENDED) {
-        LL_ERRX("job_id=%ld state=%s cannot be marked missing", job->job_id,
+        LL_ERRX("job=%ld state=%s cannot be marked missing", job->job_id,
                 job_state_str(job->state));
         return;
     }
@@ -524,6 +558,7 @@ void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->pid_wait_time = 0;
     job->pend_reason = PEND_NONE;
     job->state = JOB_PENDING;
     job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
@@ -537,6 +572,6 @@ void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
     mbd_assert_counters();
     event_job_pend(job);
 
-    LL_INFO("job_id=%ld reported missing by sbd=%s forced pending", s.job_id,
+    LL_INFO("job=%ld reported missing by sbd=%s forced pending", s.job_id,
             n->net.name);
 }

@@ -16,7 +16,6 @@
  * Global daemon state.
  */
 extern int sbd_efd;
-extern int sbd_listen_chan;
 extern int sbd_timer_chan;
 extern int sbd_mbd_chan;
 
@@ -56,8 +55,15 @@ struct sbd_job {
     uid_t uid;
     gid_t gid;
     uint32_t umask;
+    int32_t flags;
     int32_t ncpus;
     uint64_t mem_mb;
+
+    int32_t ext_port;   /* service jobs only: endpoint port on this host,
+                         * SVC_PORT_BASE + slot, persisted in the state file */
+    int32_t app_port;   /* service jobs only: service's internal listen port */
+    char token_env[LL_BUFSIZ_64]; /* service jobs only, exported at exec */
+    char token[LL_BUFSIZ_64];     /* never written to the state file */
 
     char user[LL_BUFSIZ_64];
     char user_home[PATH_MAX];
@@ -179,10 +185,10 @@ int write_all(int, const char *, size_t);
 /* cgroups
  */
 int cgroup_init(void);
-int cgroup_job_create(int64_t, uint64_t, int32_t);
-int cgroup_job_assign(int64_t, pid_t);
-void cgroup_job_destroy(int64_t);
-int cgroup_job_freeze(int64_t);
-int cgroup_job_thaw(int64_t);
-int cgroup_job_kill(int64_t);
-int cgroup_job_collect(int64_t, struct job_res_usage *);
+int cgroup_job_create(struct sbd_job *);
+int cgroup_job_assign(struct sbd_job *);
+void cgroup_job_destroy(struct sbd_job *);
+int cgroup_job_freeze(struct sbd_job *);
+int cgroup_job_thaw(struct sbd_job *);
+int cgroup_job_kill(struct sbd_job *);
+int cgroup_job_collect(struct sbd_job *);

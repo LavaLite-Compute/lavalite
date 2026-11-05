@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -11,10 +12,33 @@
 #include <grp.h>
 
 #include "base/lib/ll.syslog.h"
+#include "base/lib/ll.list.h"
+#include "base/lib/ll.sys.h"
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
 #define ARRAY_SIZE(a) ((int) (sizeof(a) / sizeof(a[0])))
+
+struct queue_conf {
+    char name[LL_BUFSIZ_64];
+    char desc[LL_BUFSIZ_256];
+    char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
+    char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
+    int priority;
+    int max_jobs;
+    int state;
+};
+
+struct service_conf {
+    char name[LL_BUFSIZ_64];
+    char command[LL_BUFSIZ_1K];
+    int port;
+    char queue[LL_BUFSIZ_64];
+    char restart[LL_BUFSIZ_32];
+    char token_env[LL_BUFSIZ_64];
+    char run_limit[LL_BUFSIZ_32];
+};
+
 
 /* Parse a size string with optional suffix M/G/T (case-insensitive).
  * No suffix = MB. Returns value in MB, 0 on error.
@@ -128,7 +152,7 @@ static int parse_token_pools(const char *path)
 
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "TokenPool", 9) == 0) {
+            if (strcmp(section, "TokenPool") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -214,6 +238,12 @@ static struct mbd_host *make_host(const char *p)
         free(h);
         return NULL;
     }
+    /* reserved, HOSTS = all in llb.queues */
+    if (strcmp(hostname, "all") == 0) {
+        LL_ERRX("host name all is reserved: %s", p);
+        free(h);
+        return NULL;
+    }
 
     if (get_host_by_name(hostname, &h->net) < 0) {
         LL_ERR("get_host_by_name failed host=%s", hostname);
@@ -289,7 +319,7 @@ static int parse_hosts(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Host", 4) == 0) {
+            if (strcmp(section, "Host") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -360,6 +390,12 @@ static struct mbd_group *make_group(char *p)
     rtrim(name);
     rtrim(members);
 
+    /* reserved, HOSTS = all in llb.queues */
+    if (strcmp(name, "all") == 0) {
+        LL_ERRX("group name all is reserved");
+        return NULL;
+    }
+
     g = calloc(1, sizeof(*g));
     if (g == NULL) {
         LL_ERR("calloc failed");
@@ -413,7 +449,7 @@ static int parse_groups(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "HostGroup", 9) == 0) {
+            if (strcmp(section, "HostGroup") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -452,19 +488,29 @@ static int parse_groups(const char *path)
     return 0;
 }
 
+/* A queue with a config error is kept with a safe default and the
+ * error logged, mbd keeps running: a dead mbd cannot say anything.
+ * Only a block without a name, or a name already taken, is skipped.
+ */
 static int commit_queue(struct queue_conf *qc)
 {
     struct mbd_queue *q;
 
     if (qc->name[0] == 0) {
-        LL_ERRX("queue missing NAME");
-        return -1;
+        LL_ERRX("queue block without QUEUE_NAME, skipped");
+        return 0;
     }
 
-    if (qc->hosts_spec[0] == 0) {
-        LL_ERRX("queue=%s missing HOSTS", qc->name);
-        return -1;
+    if (ll_hash_search(&queue_name_hash, qc->name) != NULL) {
+        LL_ERRX("queue=%s defined twice, second block skipped", qc->name);
+        return 0;
     }
+
+    /* no hosts, as when HOSTS names only unknown hosts: the queue
+     * is kept and schedules nothing, see conf_expand_queues() */
+    if (qc->hosts_spec[0] == 0)
+        LL_ERRX("queue=%s missing HOSTS, kept with no host, use HOSTS = all "
+                "for every host", qc->name);
 
     q = calloc(1, sizeof(struct mbd_queue));
     if (q == NULL) {
@@ -479,6 +525,7 @@ static int commit_queue(struct queue_conf *qc)
 
     q->priority = qc->priority;
     q->state = QUEUE_OPEN;
+    q->max_jobs = qc->max_jobs;
 
     ll_list_append(&queue_list, &q->ent);
     ll_hash_insert(&queue_name_hash, q->name, q, 0);
@@ -492,8 +539,14 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
     if (strcasecmp(key, "QUEUE_NAME") == 0)
         return ll_strlcpy(qc->name, val, LL_BUFSIZ_64);
 
-    if (strcasecmp(key, "PRIORITY") == 0)
-        return ll_atoi(val, &qc->priority);
+    /* ll_atoi() returns 1 on success, 0 on a bad number. A bad value
+     * is logged and the default kept, as if the key were omitted */
+    if (strcasecmp(key, "PRIORITY") == 0) {
+        if (!ll_atoi(val, &qc->priority))
+            LL_ERRX("queue=%s bad PRIORITY=%s, using the default",
+                    qc->name, val);
+        return 0;
+    }
 
     if (strcasecmp(key, "DESCRIPTION") == 0)
         return ll_strlcpy(qc->desc, val, LL_BUFSIZ_256);
@@ -504,8 +557,19 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
     if (strcasecmp(key, "USERS") == 0)
         return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
 
-    LL_ERRX("unknown queue key=%s", key);
-    return -1;
+    /* unset is unlimited, 0 dispatches nothing */
+    if (strcasecmp(key, "MAX_JOBS") == 0) {
+        if (!ll_atoi(val, &qc->max_jobs) || qc->max_jobs < 0) {
+            LL_ERRX("queue=%s bad MAX_JOBS=%s, using unlimited", qc->name,
+                    val);
+            qc->max_jobs = -1;
+        }
+        return 0;
+    }
+
+    LL_ERRX("queue=%s unknown key=%s, ignored", qc->name, key);
+
+    return 0;
 }
 
 static int parse_queues(const char *path)
@@ -536,9 +600,10 @@ static int parse_queues(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Queue", 5) == 0) {
+            if (strcmp(section, "Queue") == 0) {
                 in_section = 1;
                 memset(&qc, 0, sizeof(qc));
+                qc.max_jobs = -1; /* unlimited unless MAX_JOBS is set */
             }
             continue;
         }
@@ -563,9 +628,8 @@ static int parse_queues(const char *path)
 
             eq = strchr(p, '=');
             if (eq == NULL) {
-                LL_ERRX("parse_queues: bad line: %s", p);
-                fclose(f);
-                return -1;
+                LL_ERRX("queue=%s bad line, ignored: %s", qc.name, p);
+                continue;
             }
 
             *eq = 0;
@@ -583,9 +647,12 @@ static int parse_queues(const char *path)
 
     fclose(f);
 
+    /* a truncated file: keep the last queue as read */
     if (in_section) {
-        LL_ERRX("missing End Queue in %s", path);
-        return -1;
+        LL_ERRX("missing End Queue in %s, queue=%s kept as read", path,
+                qc.name);
+        if (commit_queue(&qc) < 0)
+            return -1;
     }
 
     return 0;
@@ -593,14 +660,14 @@ static int parse_queues(const char *path)
 
 /*
  * Parse Begin Sim section.
- * Each line: SIM_NAME  REAL_HOST  PORT
- * Clones the real host entry with a new name and port override.
+ * Each line: NAME  REAL_HOST  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS
+ * The sim gets the real host network identity under its own name.
  * Sim hosts are registered in host_list and host_name_hash alongside
  * real hosts so the scheduler treats them uniformly.
  * Section is optional — no error if absent.
  */
-static const char *sim_hdr[] = {"NAME", "REAL_HOST", "PORT",      "CPU",
-                                "MEM",  "STORAGE",   "GPU_MODEL", "GPU_IDS"};
+static const char *sim_hdr[] = {"NAME",    "REAL_HOST", "CPU",    "MEM",
+                                "STORAGE", "GPU_MODEL", "GPU_IDS"};
 static int parse_sim(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -622,7 +689,7 @@ static int parse_sim(const char *path)
 
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Sim", 3) == 0) {
+            if (strcmp(section, "Sim") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -653,20 +720,19 @@ static int parse_sim(const char *path)
         char storage_str[LL_BUFSIZ_32];
         char gpu_model_str[LL_BUFSIZ_64];
         char gpu_ids_str[LL_BUFSIZ_64];
-        int port;
         int total_cpu;
 
-        /* NAME  REAL_HOST  PORT  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
-        if (sscanf(p, "%255s %255s %d %d %31s %31s %63s %63s", sim_name,
-                   real_host, &port, &total_cpu, mem_str, storage_str,
-                   gpu_model_str, gpu_ids_str) != 8) {
+        /* NAME  REAL_HOST  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
+        if (sscanf(p, "%255s %255s %d %31s %31s %63s %63s", sim_name,
+                   real_host, &total_cpu, mem_str, storage_str, gpu_model_str,
+                   gpu_ids_str) != 7) {
             LL_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
         }
 
-        if (port < 1 || port > 65535) {
-            LL_ERRX("sim=%s invalid port=%d", sim_name, port);
+        if (strcmp(sim_name, "all") == 0) {
+            LL_ERRX("sim name all is reserved");
             fclose(f);
             return -1;
         }
@@ -710,7 +776,6 @@ static int parse_sim(const char *path)
         }
         h->res.free_storage_mb = h->res.total_storage_mb;
 
-        h->port = (uint16_t) port;
         h->sbd_chan = -1;
         h->state = HOST_UNAVAIL;
 
@@ -732,9 +797,9 @@ static int parse_sim(const char *path)
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
 
-        LL_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB "
+        LL_INFO("sim host=%s real=%s cpu=%d mem=%luMB "
                 "storage=%luMB gpu=%d gpu_model=%s gpu_ids=%s",
-                sim_name, real_host, port, total_cpu, h->res.total_mem_mb,
+                sim_name, real_host, total_cpu, h->res.total_mem_mb,
                 h->res.total_storage_mb, h->res.gpu.count,
                 h->res.gpu.count > 0 ? gpu_model_str : "none",
                 h->res.gpu.count > 0 ? gpu_ids_str : "-");
@@ -747,6 +812,24 @@ static int parse_sim(const char *path)
     }
 
     return 0;
+}
+
+/* A host the queue names but llb.hosts does not define is skipped,
+ * the queue keeps the others. mbd keeps running: a configuration
+ * error takes out its own object only.
+ */
+static void queue_add_host(struct mbd_queue *q, const char *name)
+{
+    struct mbd_host *h = find_host_by_name(name);
+    if (h == NULL) {
+        LL_ERRX("queue=%s host=%s not in llb.hosts, skipped", q->name, name);
+        return;
+    }
+
+    enum ll_hash_status st = ll_hash_insert(&q->host_hash, h->net.name, h, 0);
+    if (st == LL_HASH_EXISTS)
+        LL_WARNINGX("queue=%s host=%s listed twice in HOSTS, ignored",
+                    q->name, h->net.name);
 }
 
 /*
@@ -768,40 +851,32 @@ static int conf_expand_queues(void)
         while (tok != NULL) {
             struct mbd_group *g =
                 (struct mbd_group *) ll_hash_search(&group_name_hash, tok);
-            if (g != NULL) {
+            if (strcmp(tok, "all") == 0) {
+                /* every host in llb.hosts, sims included */
+                for (struct ll_list_entry *he = host_list.head; he != NULL;
+                     he = he->next) {
+                    struct mbd_host *h = (struct mbd_host *) he;
+                    queue_add_host(q, h->net.name);
+                }
+            } else if (g != NULL) {
                 char gtmp[LL_BUFSIZ_1K];
                 ll_strlcpy(gtmp, g->members, sizeof(gtmp));
                 char *inner_save;
                 char *mem = strtok_r(gtmp, " \t", &inner_save);
                 while (mem != NULL) {
-                    struct mbd_host *h = find_host_by_name(mem);
-                    if (h == NULL) {
-                        LL_ERRX("queue=%s group=%s host=%s not found", q->name,
-                                g->name, mem);
-                        return -1;
-                    }
-                    enum ll_hash_status st =
-                        ll_hash_insert(&q->host_hash, h->net.name, h, 0);
-                    if (st == LL_HASH_EXISTS)
-                        LL_WARNING("queue=%s host=%s already in host_hash",
-                                   q->name, h->net.name);
+                    queue_add_host(q, mem);
                     mem = strtok_r(NULL, " \t", &inner_save);
                 }
             } else {
-                struct mbd_host *h = find_host_by_name(tok);
-                if (h == NULL) {
-                    LL_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
-                            tok);
-                    return -1;
-                }
-                enum ll_hash_status st =
-                    ll_hash_insert(&q->host_hash, h->net.name, h, 0);
-                if (st == LL_HASH_EXISTS)
-                    LL_WARNING("queue=%s host=%s already in host_hash", q->name,
-                               h->net.name);
+                queue_add_host(q, tok);
             }
             tok = strtok_r(NULL, " \t", &outer_save);
         }
+
+        /* kept: its jobs stay, nothing is scheduled until fixed */
+        if (q->host_hash.nentries == 0)
+            LL_ERRX("queue=%s has no valid host, it will not schedule",
+                    q->name);
     }
     return 0;
 }
@@ -815,8 +890,8 @@ static int conf_expand_queue_users(void)
 
         ll_hash_init(&q->user_hash, 101);
 
-        /* empty or '*' means all users allowed — leave hash empty */
-        if (q->users[0] == '\0' || strcmp(q->users, "*") == 0)
+        /* empty or all means all users allowed — leave hash empty */
+        if (q->users[0] == '\0' || strcmp(q->users, "all") == 0)
             continue;
 
         char tmp[LL_BUFSIZ_4K];
@@ -843,6 +918,18 @@ static int conf_expand_queue_users(void)
     return 0;
 }
 
+static const char *service_restart_str(enum service_restart restart)
+{
+    switch (restart) {
+    case LL_SERVICE_RESTART_ALWAYS:
+        return "always";
+    case LL_SERVICE_RESTART_NEVER:
+        return "never";
+    default:
+        return "?";
+    }
+}
+
 static void dump_config(void)
 {
     struct ll_list_entry *e;
@@ -850,10 +937,9 @@ static void dump_config(void)
     LL_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
-        LL_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB "
+        LL_DEBUG("host name=%s addr=%s cpu=%d mem=%luMB storage=%luMB "
                  "gpu_count=%d gpu_model=%s gpu_ids=%s",
-                 h->net.name, h->net.addr, h->port ? h->port : 0,
-                 h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
+                 h->net.name, h->net.addr, h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
                  h->res.gpu.count,
                  h->res.gpu.count > 0 ? h->res.gpu.gpu_model : "none",
                  h->res.gpu.count > 0 ? h->res.gpu.gpu_ids : "-");
@@ -879,6 +965,17 @@ static void dump_config(void)
         struct mbd_token_pool *tp = (struct mbd_token_pool *) e;
         LL_DEBUG("tokenpool name=%s total=%d", tp->name, tp->total);
     }
+
+    LL_DEBUG("--- services ---");
+    for (e = service_list.head; e; e = e->next) {
+        struct service_data *s = (struct service_data *) e;
+        LL_DEBUG("service name=%s command=%s port=%d "
+                 "queue=%s restart=%s run_limit=%d",
+                 s->name, s->command, s->port,
+                 s->queue[0] ? s->queue : "-",
+                 service_restart_str(s->restart),
+                 s->run_limit);
+    }
 }
 
 static int check_ll_config(void)
@@ -903,6 +1000,214 @@ static int check_ll_config(void)
                               ll_params[LL_DEFAULT_QUEUE].val)) {
         LL_ERRX("LL_DEFAULT_QUEUE missing from ll.conf");
         return -1;
+    }
+
+    return 0;
+}
+
+static int parse_service_conf(struct service_conf *sc,
+                              const char *key,
+                              const char *val)
+{
+    if (strcasecmp(key, "SERVICE_NAME") == 0)
+        return ll_strlcpy(sc->name, val, sizeof(sc->name));
+
+    if (strcasecmp(key, "COMMAND") == 0)
+        return ll_strlcpy(sc->command, val, sizeof(sc->command));
+
+    if (strcasecmp(key, "PORT") == 0) {
+        if (!ll_atoi(val, &sc->port)) {
+            LL_ERRX("service=%s bad PORT=%s", sc->name, val);
+            return -1;
+        }
+        return 0;
+    }
+
+    if (strcasecmp(key, "QUEUE") == 0)
+        return ll_strlcpy(sc->queue, val, sizeof(sc->queue));
+
+    if (strcasecmp(key, "RESTART") == 0)
+        return ll_strlcpy(sc->restart, val, sizeof(sc->restart));
+
+    if (strcasecmp(key, "RUNLIMIT") == 0)
+        return ll_strlcpy(sc->run_limit, val, sizeof(sc->run_limit));
+
+    if (strcasecmp(key, "TOKEN_ENV") == 0)
+        return ll_strlcpy(sc->token_env, val, sizeof(sc->token_env));
+
+    LL_ERRX("unknown service key=%s", key);
+    return -1;
+}
+
+static int commit_service(struct service_conf *sc)
+{
+    struct service_data *s;
+
+    if (sc->name[0] == 0) {
+        LL_ERRX("service missing SERVICE_NAME");
+        return -1;
+    }
+
+    if (sc->command[0] == 0) {
+        LL_ERRX("service=%s missing COMMAND", sc->name);
+        return -1;
+    }
+
+    /* without a queue the service would land in LL_DEFAULT_QUEUE,
+     * on batch hosts */
+    if (sc->queue[0] == 0) {
+        LL_ERRX("service=%s missing QUEUE", sc->name);
+        return -1;
+    }
+
+    s = calloc(1, sizeof(struct service_data));
+    if (s == NULL) {
+        LL_ERR("calloc failed");
+        return -1;
+    }
+
+    ll_strlcpy(s->name, sc->name, sizeof(s->name));
+    ll_strlcpy(s->command, sc->command, sizeof(s->command));
+    s->port = sc->port;
+
+    /* RUNLIMIT is [hours:]minutes, absent means no limit */
+    if (sc->run_limit[0] != 0
+        && llb_parse_time_limit(sc->run_limit, &s->run_limit) < 0) {
+        LL_ERRX("service=%s invalid RUNLIMIT=%s", sc->name, sc->run_limit);
+        free(s);
+        return -1;
+    }
+
+    if (sc->port <= 0) {
+        LL_ERRX("service=%s requires valid PORT", sc->name);
+        free(s);
+        return -1;
+    }
+
+    if (!ll_hash_contains(&queue_name_hash, sc->queue)) {
+        LL_ERRX("service=%s QUEUE=%s not found", sc->name, sc->queue);
+        free(s);
+        return -1;
+    }
+    ll_strlcpy(s->queue, sc->queue, sizeof(s->queue));
+
+    /* RESTART defaults to always */
+    if (sc->restart[0] == 0 || strcasecmp(sc->restart, "always") == 0)
+        s->restart = LL_SERVICE_RESTART_ALWAYS;
+    else if (strcasecmp(sc->restart, "never") == 0)
+        s->restart = LL_SERVICE_RESTART_NEVER;
+    else {
+        LL_ERRX("service=%s invalid RESTART=%s",
+                sc->name, sc->restart);
+        free(s);
+        return -1;
+    }
+
+    /* goes to setenv() on the exec host, a plain name only */
+    if (sc->token_env[0] != 0
+        && strspn(sc->token_env, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                  "abcdefghijklmnopqrstuvwxyz0123456789_")
+           != strlen(sc->token_env)) {
+        LL_ERRX("service=%s invalid TOKEN_ENV=%s", sc->name, sc->token_env);
+        free(s);
+        return -1;
+    }
+    ll_strlcpy(s->token_env, sc->token_env, sizeof(s->token_env));
+
+    ll_list_init(&s->instances);
+    ll_list_append(&service_list, &s->ent);
+
+    LL_INFO("service=%s port=%d queue=%s restart=%s "
+            "token_env=%s run_limit=%d", sc->name, sc->port,
+            sc->queue[0] ? sc->queue : "-", sc->restart,
+            sc->token_env[0] ? sc->token_env : "-", s->run_limit);
+
+    return 0;
+}
+
+static int services_skipped;
+
+/* A service block with an error is not configured, the reason is
+ * logged and the other services are loaded: mbd keeps running.
+ * Instances of a skipped service already in the manifest come back
+ * ORPHAN at replay.
+ */
+static void service_skip(const char *name)
+{
+    LL_ERRX("service=%s not configured", name[0] != 0 ? name : "-");
+    services_skipped++;
+}
+
+static int parse_services(const char *path)
+{
+    FILE *f;
+    struct service_conf svc;
+    char line[LL_BUFSIZ_1K];
+    int in_section;
+    int bad = 0;
+
+    f = fopen(path, "r");
+    if (f == NULL) {
+        LL_ERR("fopen=%s failed", path);
+        return -1;
+    }
+
+    memset(&svc, 0, sizeof(svc));
+    in_section = 0;
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        char *p;
+        char *section;
+
+        p = ltrim(line);
+        rtrim(p);
+
+        if (*p == 0 || *p == '#')
+            continue;
+
+        section = ll_conf_parse_begin(p);
+        if (section != NULL) {
+            if (strcmp(section, "Service") == 0) {
+                in_section = 1;
+                bad = 0;
+                memset(&svc, 0, sizeof(svc));
+            }
+            continue;
+        }
+
+        if (!in_section)
+            continue;
+
+        if (ll_conf_parse_end(p)) {
+            if (bad || commit_service(&svc) < 0)
+                service_skip(svc.name);
+            in_section = 0;
+            memset(&svc, 0, sizeof(svc));
+            continue;
+        }
+
+        char *eq = strchr(p, '=');
+        if (eq == NULL) {
+            LL_ERRX("service=%s bad line: %s", svc.name, p);
+            bad = 1;
+            continue;
+        }
+
+        *eq = 0;
+        char *key = p;
+        char *val = ltrim(eq + 1);
+        rtrim(key);
+        rtrim(val);
+
+        if (parse_service_conf(&svc, key, val) < 0)
+            bad = 1;
+    }
+
+    fclose(f);
+
+    if (in_section) {
+        LL_ERRX("missing End Service in %s", path);
+        service_skip(svc.name);
     }
 
     return 0;
@@ -977,6 +1282,15 @@ int conf_init(void)
         return -1;
     }
 
+    n = snprintf(path, sizeof(path), "%s/llb.services", conf_dir);
+    if (n < 0 || n >= (int) sizeof(path))
+        return -1;
+
+    if (parse_services(path) < 0) {
+        LL_ERRX("parse_services failed path=%s", path);
+        return -1;
+    }
+
     if (init_manager() < 0) {
         LL_ERR("init_manager failed");
         return -1;
@@ -989,6 +1303,12 @@ int conf_init(void)
     }
 
     dump_config();
+
+    /* one line to see after a restart whether something is missing */
+    LL_INFO("hosts=%d queues=%d groups=%d services=%d "
+            "services_skipped=%d", ll_list_count(&host_list),
+            ll_list_count(&queue_list), ll_list_count(&group_list),
+            ll_list_count(&service_list), services_skipped);
 
     return 0;
 }

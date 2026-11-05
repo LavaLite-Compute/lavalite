@@ -62,10 +62,6 @@ Lines starting with **#** are comments. Blank lines are ignored.
 
 ## Network
 
-**LL_LIM_PORT**
-:   TCP port for the Load Information Manager. Must not conflict with
-    other services.
-
 **LL_MBD_PORT**
 :   TCP port for **mbd**.
 
@@ -74,9 +70,6 @@ Lines starting with **#** are comments. Blank lines are ignored.
 
 **LL_MBD_USER**
 :   User account under which **mbd** runs.
-
-**LL_SBD_PORT**
-:   TCP port for **sbd** on each execution host.
 
 ## Scheduling
 
@@ -91,9 +84,15 @@ Lines starting with **#** are comments. Blank lines are ignored.
     are removed. Default: 100.
 
 **LL_MBD_JOB_FINISH_THRESHOLD**
-:   Maximum number of finished jobs retained in memory by mbd.
-    When the threshold is exceeded, mbd rebuilds its active scheduler
-    state from the event manifest. Default: 1000.
+:   Number of finished jobs older than **LL_MBD_JOB_FINISH_PERIOD**,
+    the ones a compaction can drop, that triggers a compaction of the
+    event manifest. Checked every 5 minutes. Default: 1000.
+
+**LL_MBD_JOB_FINISH_PERIOD**
+:   Seconds a finished job is kept by mbd, visible with
+    **bjobs --done**, before a compaction may drop it. Younger
+    finished jobs are kept across compactions and mbd restarts.
+    0 drops every finished job at each compaction. Default: 3600.
 
 ## Timeouts (optional)
 
@@ -112,17 +111,16 @@ Lines starting with **#** are comments. Blank lines are ignored.
 # EXAMPLE
 
     LL_CLUSTER_NAME=mycluster
-    LL_STATE_DIR=/opt/lavalite/var/state
-    LL_CONF_DIR=/opt/lavalite/etc
-    LL_LOG_DIR=/opt/lavalite/var/log
+    LL_STATE_DIR=/opt/lavalite-2.0.0/var/state
+    LL_CONF_DIR=/opt/lavalite-2.0.0/etc
+    LL_LOG_DIR=/opt/lavalite-2.0.0/var/log
     LL_LOG_MASK=LOG_WARNING
-    LL_LIM_PORT=33123
     LL_MBD_PORT=33124
     LL_MBD_HOST=master01
     LL_MBD_USER=lavalite
-    LL_SBD_PORT=33125
     LL_SBD_JOB_FINISH_RETAIN=100
     LL_MBD_JOB_FINISH_THRESHOLD=1000
+    LL_MBD_JOB_FINISH_PERIOD=3600
     LL_DEFAULT_QUEUE=normal
 
 # SEE ALSO

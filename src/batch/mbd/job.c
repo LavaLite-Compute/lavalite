@@ -25,6 +25,7 @@
 struct ll_list pend_jobs_list;
 struct ll_list run_jobs_list;
 struct ll_list finish_jobs_list;
+struct ll_list orphan_jobs_list;
 
 int64_t job_id_seq = 0;
 struct ll_hash job_id_hash;
@@ -45,6 +46,12 @@ void job_free(struct job_data *job)
     free(job->run_hosts);
     ll_hash_clear(&job->res.machines, NULL);
     ll_list_clear(&job->res.tokens, free);
+    if (job_is_service(job)) {
+        struct service_instance *inst = job->svc_inst;
+        ll_list_remove(&inst->svc->instances, &inst->ent);
+        free(inst);
+    }
+
     free(job);
 }
 
@@ -80,6 +87,14 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     job->begin_time = (time_t) ws->begin_time;
     job->term_time = (time_t) ws->term_time;
     ll_strlcpy(job->project, ws->project, sizeof(job->project));
+
+    if (ws->run_limit < 0) {
+        LL_ERRX("job=%ld invalid run_limit=%d", job->job_id, ws->run_limit);
+        free(job);
+        *err = EINVAL;
+        return NULL;
+    }
+    job->run_limit = ws->run_limit;
 
     ll_strlcpy(job->res.gpu_model, ws->gpu_model, sizeof(job->res.gpu_model));
     job->res.num_cpus = ws->num_cpus;
@@ -121,7 +136,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     job->priority = job->queue->priority;
 
     if (!queue_user_allowed(job->queue, job->user)) {
-        LL_ERRX("job_id=%ld user=%s not allowed in queue=%s", job->job_id,
+        LL_ERRX("job=%ld user=%s not allowed in queue=%s", job->job_id,
                 job->user, job->queue->name);
         free(job);
         *err = EPERM;
@@ -129,7 +144,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     }
 
     if (job->res.num_hosts < 1) {
-        LL_ERRX("job_id=%ld invalid num_host=%d forcing to one 1", job->job_id,
+        LL_ERRX("job=%ld invalid num_host=%d forcing to one 1", job->job_id,
                 job->res.num_hosts);
         job->res.num_hosts = 1;
     }
@@ -310,7 +325,7 @@ static int write_sidecar(const struct job_data *job,
 
     if (chmod(path, 0644) < 0) {
         int e = errno;
-        LL_ERR("job_id=%ld chmod=%s to 644 failed", job->job_id, path);
+        LL_ERR("job=%ld chmod=%s to 644 failed", job->job_id, path);
         errno = e;
         return -1;
     }
@@ -328,7 +343,12 @@ static int job_uses_host(struct job_data *job, struct mbd_host *h)
     return 0;
 }
 
-static int job_parse_tokens(struct job_data *job, const char *tokenpool)
+/* Parse "pool=count,..." into job->res.tokens. Submit checks the pools
+ * exist, replay does not: a pool missing from the config is kept by
+ * name and the job becomes an orphan, see job_is_orphan().
+ */
+int job_parse_tokens(struct job_data *job, const char *tokenpool,
+                     int check_pool)
 {
     if (tokenpool[0] == 0)
         return 0;
@@ -340,21 +360,19 @@ static int job_parse_tokens(struct job_data *job, const char *tokenpool)
     while (tok != NULL) {
         char *eq = strchr(tok, '=');
         if (eq == NULL) {
-            LL_ERRX("job_id=%ld invalid token spec=%s", job->job_id, tok);
+            LL_ERRX("job=%ld invalid token spec=%s", job->job_id, tok);
             errno = EINVAL;
             return -1;
         }
         *eq = 0;
         int count;
         if (ll_atoi(eq + 1, &count) < 0 || count <= 0) {
-            LL_ERRX("job_id=%ld invalid token count=%s", job->job_id, eq + 1);
+            LL_ERRX("job=%ld invalid token count=%s", job->job_id, eq + 1);
             errno = EINVAL;
             return -1;
         }
-        struct mbd_token_pool *p;
-        p = ll_hash_search(&token_pool_name_hash, tok);
-        if (p == NULL) {
-            LL_ERRX("job_id=%ld token pool=%s not found", job->job_id, tok);
+        if (check_pool && ll_hash_search(&token_pool_name_hash, tok) == NULL) {
+            LL_ERRX("job=%ld token pool=%s not found", job->job_id, tok);
             errno = EINVAL;
             return -1;
         }
@@ -385,7 +403,7 @@ static int job_write_usage(const struct job_data *job,
 
     FILE *f = fopen(path, "w");
     if (f == NULL) {
-        LL_ERR("job_id=%ld open usage failed: %m", job->job_id);
+        LL_ERR("job=%ld open usage failed: %m", job->job_id);
         return -1;
     }
     fprintf(f, "pid=%d\n", s->pid);
@@ -394,7 +412,7 @@ static int job_write_usage(const struct job_data *job,
     fprintf(f, "cpu_time=%.2f\n", s->cpu_time);
     fclose(f);
 
-    LL_INFO("job_id=%ld usage written", job->job_id);
+    LL_INFO("job=%ld usage written", job->job_id);
     return 0;
 }
 
@@ -407,8 +425,17 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     struct mbd_host *h = job->run_hosts[0];
     int sbd_chan = h->sbd_chan;
 
-    LL_ERR("job_id=%ld rejected by sbd=%s, returning to pending", job->job_id,
+    LL_ERRX("job=%ld rejected by sbd=%s, returning to pending", job->job_id,
            chan_addr_str(sbd_chan));
+
+    /* sbd rejects only before fork, on its own failures: job dir,
+     * state dir, script, namespace, fork. Taint the host so the
+     * next dispatch goes elsewhere, see mark_candidates().
+     */
+    h->state |= HOST_TAINTED;
+    h->taint_time = time(NULL);
+    LL_INFO("host=%s tainted for %d secs by job=%ld reject", h->net.name,
+            TAINT_TIME, job->job_id);
 
     reset_host_resources(job);
     token_pool_release(job);
@@ -425,6 +452,7 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->pid_wait_time = 0;
     job->state = JOB_PENDING;
     job->pend_reason = PEND_NONE;
 
@@ -433,13 +461,13 @@ static void mbd_job_reject_dispatch(struct job_data *job)
 
     job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
 
-    LL_INFO("job_id=%ld back to pending", job->job_id);
+    LL_INFO("job=%ld back to pending", job->job_id);
 
     mbd_assert_counters();
 
     event_job_pend(job);
 
-    LL_INFO("job_id=%ld returned to pending after sbd reject from=%s",
+    LL_INFO("job=%ld returned to pending after sbd reject from=%s",
             job->job_id, chan_addr_str(sbd_chan));
 
     /* Now ack the new job reply
@@ -455,14 +483,14 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
+        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
                h->net.name);
         return;
     }
 
-    if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K, xdr_wire_job_ack) <
-        0) {
-        LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
+    if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
+        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
         return;
     }
 }
@@ -472,9 +500,13 @@ void reset_host_resources(struct job_data *job)
     for (int i = 0; i < job->run_nhosts; i++) {
         struct mbd_host *h = job->run_hosts[i];
 
+        /* only an orphan runs on a stale host, nothing was charged */
+        if (h->stale)
+            continue;
+
         h->res.free_cpu += job->res.num_cpus;
-        h->res.free_mem_mb += job->res.mem_mb;
-        h->res.free_storage_mb += job->res.storage_mb;
+        h->res.free_mem_mb += (int64_t) job->res.mem_mb;
+        h->res.free_storage_mb += (int64_t) job->res.storage_mb;
         h->num_jobs--;
         h->num_cpus_used -= job->res.num_cpus;
 
@@ -491,7 +523,7 @@ void reset_host_resources(struct job_data *job)
             gpu_ids_mark_free(&h->res.gpu, job->res.num_gpus);
         }
 
-        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
+        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%ld free_storage_mb=%ld "
                  "free_gpu=%d num_jobs=%d",
                  h->net.name, h->res.free_cpu, h->res.free_mem_mb,
                  h->res.free_storage_mb, gpu_ids_count_free(&h->res.gpu),
@@ -504,7 +536,7 @@ static int dep_resolve_job(int64_t job_id, void *ctx)
     char key[LL_BUFSIZ_32];
 
     (void) ctx;
-    snprintf(key, sizeof(key), "%ld", (long) job_id);
+    snprintf(key, sizeof(key), "%ld", job_id);
     if (ll_hash_search(&job_id_hash, key))
         return 1;
 
@@ -528,7 +560,7 @@ static int job_deps_set(struct job_data *job, const char *depend_cond,
 static int job_parse_deps(struct job_data *job, const char *depend_cond)
 {
     if (job_deps_set(job, depend_cond, dep_resolve_job) < 0) {
-        LL_ERRX("job_id=%ld invalid dependency expression=%s", job->job_id,
+        LL_ERRX("job=%ld invalid dependency expression=%s", job->job_id,
                 depend_cond);
         errno = EINVAL;
         return -1;
@@ -551,7 +583,7 @@ static int job_parse_deps(struct job_data *job, const char *depend_cond)
 void job_replay_deps(struct job_data *job, const char *depend_cond)
 {
     if (job_deps_set(job, depend_cond, NULL) < 0) {
-        LL_ERR("job_id=%ld corrupt dependency expression in manifest=%s",
+        LL_ERR("job=%ld corrupt dependency expression in manifest=%s",
                job->job_id, depend_cond);
         dep_list_free(&job->deps);
         job->depend_cond[0] = 0;
@@ -573,7 +605,7 @@ static int job_register_reply(int chan_id, int64_t job_id)
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
                         xdr_wire_job_submit_reply) < 0) {
-        LL_ERR("enqueue_payload failed job_id=%ld", job_id);
+        LL_ERR("enqueue_payload failed job=%ld", job_id);
         return -1;
     }
 
@@ -597,9 +629,10 @@ static void job_register_error(int chan_id, int status)
     enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
 }
 
-static struct job_data *job_prepare(struct wire_job_submit *ws,
-                                    const struct wire_job_script *script,
-                                    const struct protocol_header *hdr, int *err)
+struct job_data * job_prepare(struct wire_job_submit *ws,
+                              const struct wire_job_script *script,
+                              const struct protocol_header *hdr,
+                              int *err)
 {
     struct job_data *job;
 
@@ -614,21 +647,21 @@ static struct job_data *job_prepare(struct wire_job_submit *ws,
 
     if (write_script(job, script) < 0) {
         *err = errno;
-        LL_ERR("write_script failed job_id=%ld", job->job_id);
+        LL_ERR("write_script failed job=%ld", job->job_id);
         job_free(job);
         return NULL;
     }
 
     if (write_sidecar(job, ws) < 0) {
         *err = errno;
-        LL_ERR("write_sidecar failed job_id=%ld", job->job_id);
+        LL_ERR("write_sidecar failed job=%ld", job->job_id);
         job_free(job);
         return NULL;
     }
 
-    if (job_parse_tokens(job, ws->tokenpool) < 0) {
+    if (job_parse_tokens(job, ws->tokenpool, 1) < 0) {
         *err = errno;
-        LL_ERRX("job_id=%ld invalid token pool spec", job->job_id);
+        LL_ERRX("job=%ld invalid token pool spec", job->job_id);
         job_free(job);
         return NULL;
     }
@@ -638,12 +671,41 @@ static struct job_data *job_prepare(struct wire_job_submit *ws,
 
     if (job_parse_deps(job, ws->depend_cond) < 0) {
         *err = errno;
-        LL_ERRX("job_id=%ld invalid dependency spec", job->job_id);
+        LL_ERRX("job=%ld invalid dependency spec", job->job_id);
         job_free(job);
         return NULL;
     }
 
     return job;
+}
+
+void job_commit(struct job_data *job, struct wire_job_submit *ws)
+{
+    char key[LL_BUFSIZ_32];
+
+    snprintf(key, sizeof(key), "%ld", job->job_id);
+
+    enum ll_hash_status hs;
+    hs = ll_hash_insert(&job_id_hash, key, job, 0);
+    assert(hs == LL_HASH_INSERTED);
+
+    job_deps_hold(job);
+
+    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
+
+    event_job_new(job, ws);
+
+    if (job->state == JOB_PENDING)
+        job->queue->num_pend++;
+    else if (job->state == JOB_HELD)
+        job->queue->num_held++;
+
+    job->queue->num_jobs++;
+
+    LL_INFO("job=%ld flags=0x%x user=%s queue=%s num_jobs=%d num_pend=%d "
+            "dependency=%s", job->job_id, job->flags, job->user,
+            job->queue->name, job->queue->num_jobs, job->queue->num_pend,
+            (job->depend_cond[0] != 0 ?job->depend_cond : "none"));
 }
 
 static void job_discard(struct job_data *job)
@@ -667,34 +729,6 @@ static void job_discard_prepared(struct ll_list *prepared)
         ll_list_remove(prepared, &job->ent);
         job_discard(job);
     }
-}
-
-static void job_commit(struct job_data *job, struct wire_job_submit *ws)
-{
-    char key[LL_BUFSIZ_32];
-
-    snprintf(key, sizeof(key), "%ld", job->job_id);
-
-    enum ll_hash_status hs;
-    hs = ll_hash_insert(&job_id_hash, key, job, 0);
-    assert(hs == LL_HASH_INSERTED);
-
-    job_deps_hold(job);
-
-    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
-
-    event_job_new(job, ws);
-
-    if (job->state == JOB_PENDING)
-        job->queue->num_pend++;
-    else if (job->state == JOB_HELD)
-        job->queue->num_held++;
-
-    job->queue->num_jobs++;
-
-    LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d dependency=%s",
-            job->job_id, job->user, job->queue->name, job->queue->num_jobs,
-            job->queue->num_pend, job->depend_cond);
 }
 
 static void job_commit_prepared(struct ll_list *prepared,
@@ -1076,6 +1110,7 @@ int job_init(void)
     ll_list_init(&pend_jobs_list);
     ll_list_init(&run_jobs_list);
     ll_list_init(&finish_jobs_list);
+    ll_list_init(&orphan_jobs_list);
 
     LL_INFO("job structures initialized");
 
@@ -1092,47 +1127,83 @@ int job_init(void)
     return 0;
 }
 
-void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
+void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
                        struct protocol_header *hdr)
 {
     struct wire_job_reply r;
     memset(&r, 0, sizeof(r));
     if (!xdr_wire_job_reply(xdrs, &r)) {
         LL_ERR("xdr_wire_job_reply decode failed from=%s",
-               chan_addr_str(n->sbd_chan));
+               chan_addr_str(host->sbd_chan));
         return;
     }
 
     struct job_data *job = job_find(r.job_id);
     if (job == NULL) {
-        LL_ERR("job_id=%ld not found from=%s - admin intervention required",
-               r.job_id, chan_addr_str(n->sbd_chan));
+        LL_ERR("job=%ld not found from=%s - admin intervention required",
+               r.job_id, chan_addr_str(host->sbd_chan));
+        return;
+    }
+
+    /* frozen: no ack, sbd keeps the job and resends until the config
+     * is fixed and the job heals, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, reply from sbd=%s not acked",
+                r.job_id, host->net.name);
         return;
     }
 
     // Something went really wrong
     if (r.state == JOB_PENDING) {
+        /* sbd rejected a job that bkill -s 9 already finished, the
+         * messages crossed, see kill_running_job() */
+        if (job->list_id == JOB_LIST_FINISH) {
+            LL_INFO("job=%ld finished, reject from sbd=%s dropped",
+                    r.job_id, host->net.name);
+            return;
+        }
         if (job->state == JOB_PENDING || job->state == JOB_HELD) {
             assert(job->list_id == JOB_LIST_PEND);
-            LL_INFO("job_id=%ld duplicated event received", r.job_id);
+            LL_INFO("job=%ld duplicated event received", r.job_id);
             return;
         }
 
-        LL_ERR("job_id=%ld rejected by sbd=%s status=%d (%s)", r.job_id,
-               chan_addr_str(n->sbd_chan), hdr->status, strerror(hdr->status));
+        LL_ERRX("job=%ld rejected by sbd=%s status=%d (%s)", r.job_id,
+                chan_addr_str(host->sbd_chan), hdr->status,
+                strerror(hdr->status));
 
         mbd_job_reject_dispatch(job);
         return;
     }
 
     int duplicate = 0;
-    /* duplicate: skip event log, sbd resends if it restarts before ack
-     */
-    if (job->fork_time > 0) {
-        LL_INFO("job_id=%ld fork duplicate from=%s", r.job_id,
-                chan_addr_str(n->sbd_chan));
+    /* bkill -s 9 finished the job while sbd was starting it, the
+     * messages crossed: ack the pid so sbd moves on to the finish,
+     * change nothing, see kill_running_job() */
+    if (job->list_id == JOB_LIST_FINISH) {
+        LL_INFO("job=%ld finished, pid=%d from sbd=%s acked and discarded",
+                r.job_id, r.pid, host->net.name);
+        duplicate = 1;
+    } else if (job->fork_time > 0) {
+        LL_INFO("job=%ld fork duplicate from=%s", r.job_id,
+                chan_addr_str(host->sbd_chan));
         duplicate = 1;
         // fall through
+    }
+
+    if (duplicate == 0) {
+        job->pid = (pid_t) r.pid;
+        job->fork_time = time(NULL);
+        job->pid_wait_time = 0; /* got the pid, done waiting */
+        job->state = JOB_RUNNING;
+        /* the run limit counts from the first fork, a relocated job
+         * keeps its original run_start */
+        if (job->run_start == 0)
+            job->run_start = job->fork_time;
+        /* sbd owns the endpoint, mbd records it with the pid
+         */
+        service_job_running(job, host, r.ext_port);
+        event_job_fork(job);
     }
 
     struct wire_job_ack ack;
@@ -1146,25 +1217,47 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
     rep_hdr.status = MBD_OK;
 
     if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
+        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               host->net.name);
+        return;
+    }
+
+    if (enqueue_payload(host->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
+        LL_ERR("job=%ld enqueue_payload failed", r.job_id);
+        return;
+    }
+
+    LL_INFO("job=%ld pid=%d acked duplicate=%d", r.job_id, r.pid, duplicate);
+
+}
+
+/* Tell sbd it can forget the finish of job_id: mbd took it, or will
+ * never need it. Only an orphan is not acked, it needs its finish
+ * when the config is fixed. */
+static void job_finish_ack(struct mbd_host *n, int64_t job_id)
+{
+    struct wire_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = job_id;
+    ack.ack_op = BATCH_JOB_FINISH;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_FINISH_ACK;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("job=%ld failed to sign header for host=%s", job_id,
                n->net.name);
         return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack) < 0) {
-        LL_ERR("job_id=%ld enqueue_payload failed", r.job_id);
+        LL_ERR("job=%ld enqueue_payload failed", job_id);
         return;
     }
-
-    if (duplicate)
-        return;
-
-    job->pid = (pid_t) r.pid;
-    job->fork_time = time(NULL);
-    job->state = JOB_RUNNING;
-    event_job_fork(job);
-    LL_INFO("job_id=%ld pid=%d acked", r.job_id, r.pid);
 }
 
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
@@ -1180,113 +1273,113 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 
     struct job_data *job = job_find(f.job_id);
     if (job == NULL) {
-        // Distinguish missing from duplicate for code and logical clarity
-        LL_ERR("job_id=%ld not found from=%s", f.job_id,
+        LL_ERR("job=%ld not found from=%s", f.job_id,
                chan_addr_str(n->sbd_chan));
-        struct wire_job_ack ack;
-        memset(&ack, 0, sizeof(ack));
-        ack.job_id = f.job_id;
-        ack.ack_op = BATCH_JOB_FINISH;
-        struct protocol_header hdr;
-        init_protocol_header(&hdr);
-        hdr.operation = BATCH_JOB_FINISH_ACK;
-        hdr.status = MBD_OK;
-        if (auth_sign_header(&hdr) < 0) {
-            LL_ERR("job_id=%ld failed to sign header", f.job_id);
-            return;
-        }
-        enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack);
+        job_finish_ack(n, f.job_id);
         return;
     }
 
-    if (strcmp(n->net.name, job->run_hosts[0]->net.name) != 0) {
-        LL_WARNING("job_id=%ld finish reported by host=%s but dispatched to "
-                   " host=%s — ignoring",
-                   job->job_id, n->net.name, job->run_hosts[0]->net.name);
+    /* frozen: no ack, sbd keeps the finish and resends it until the
+     * config is fixed and the job heals, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, finish from sbd=%s not acked",
+                f.job_id, n->net.name);
+        return;
+    }
+
+    /* the job must have been dispatched to this host, otherwise the
+     * finish is not for this job, as when its id was reused after the
+     * mbd state was removed: ignored and acked, mbd never needs it */
+    if (job->state == JOB_PENDING) {
+        LL_ERRX("job=%ld is pending, finish from sbd=%s ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
+        return;
+    }
+
+    if (job->state == JOB_HELD) {
+        LL_ERRX("job=%ld is held, finish from sbd=%s ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
+        return;
+    }
+
+    if (job->run_nhosts == 0) {
+        LL_ERRX("job=%ld was never dispatched, finish from sbd=%s ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
+        return;
+    }
+
+    if (job->run_hosts[0] != n) {
+        LL_ERRX("job=%ld was not dispatched to sbd=%s, finish ignored",
+                job->job_id, n->net.name);
+        job_finish_ack(n, f.job_id);
         return;
     }
 
     int duplicate = 0;
     if (job->end_time > 0) {
-        LL_INFO("job_id=%ld finish duplicate from=%s", f.job_id,
+        LL_INFO("job=%ld finish duplicate from=%s", f.job_id,
                 chan_addr_str(n->sbd_chan));
         duplicate = 1;
-        goto send_ack;
-    }
-    // run the assert only the first time sbd is reporting job finished
-    assert((job->state == JOB_RUNNING) || (job->state == JOB_SUSPENDED));
 
-send_ack:
-    struct wire_job_ack ack;
-    memset(&ack, 0, sizeof(ack));
-    ack.job_id = f.job_id;
-    ack.ack_op = BATCH_JOB_FINISH;
-
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_FINISH_ACK;
-    hdr.status = MBD_OK;
-
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
-               n->net.name);
-        return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack) < 0) {
-        LL_ERR("job_id=%ld enqueue_payload failed", f.job_id);
-        return;
+    if (duplicate == 0) {
+        // run the assert only the first time sbd is reporting job finished
+        assert((job->state == JOB_RUNNING) || (job->state == JOB_SUSPENDED));
+
+        job->end_time = time(NULL);
+        job->exit_status = f.exit_status;
+
+        LL_INFO("job=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id,
+                f.mem_mb, f.swap_mb, f.cpu_time);
+
+        // this function depends on the state of the job not
+        // being DONE|EXIT yet
+        reset_host_resources(job);
+        token_pool_release(job);
+
+        // Update the queue counters before resetting the job state
+        if (job->state == JOB_RUNNING)
+            job->queue->num_run--;
+
+        if (job->state == JOB_SUSPENDED)
+            job->queue->num_susp--;
+
+        job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
+        job->queue->num_hosts_used -= job->run_nhosts;
+        job->queue->num_jobs--;
+
+        if (f.state == 0)
+            job->state = JOB_DONE;
+        else
+            job->state = JOB_EXITED;
+
+        job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+        job_array_element_finished(job);
+
+        LL_INFO("job=%ld finish acked state=%s", f.job_id,
+                job_state_str(job->state));
+
+        // We free the job only when we compact the events file
+        event_job_finish(job);
+        if (job_write_usage(job, &f) < 0) {
+            LL_ERR("job=%ld failed job_write_usage", job->job_id);
+        }
+
+        LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
+                 job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
+
+        // debug code
+        mbd_assert_counters();
+
+        if (job_is_service(job))
+            service_instance_finish(job->svc_inst);
     }
 
-    if (duplicate)
-        return;
-
-    job->end_time = time(NULL);
-    job->exit_status = f.exit_status;
-
-    LL_INFO("job_id=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id,
-            f.mem_mb, f.swap_mb, f.cpu_time);
-
-    // this function depends on the state of the job not
-    // being DONE|EXIT yet
-    reset_host_resources(job);
-    token_pool_release(job);
-
-    // Update the queue counters before resetting the job state
-    if (job->state == JOB_RUNNING)
-        job->queue->num_run--;
-
-    if (job->state == JOB_SUSPENDED)
-        job->queue->num_susp--;
-
-    job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
-    job->queue->num_hosts_used -= job->run_nhosts;
-    job->queue->num_jobs--;
-
-    if (f.state == 0)
-        job->state = JOB_DONE;
-    else
-        job->state = JOB_EXITED;
-
-    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
-    job_array_element_finished(job);
-
-    LL_INFO("job_id=%ld finish acked state=%s", f.job_id,
-            job_state_str(job->state));
-
-    // We free the job only when we compact the events file
-    event_job_finish(job);
-    if (job_write_usage(job, &f) < 0) {
-        LL_ERR("job_id=%ld failed job_write_usage", job->job_id);
-    }
-
-    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
-             job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
-
-    // debug code
-    mbd_assert_counters();
+    job_finish_ack(n, f.job_id);
 }
 
 char *job_state_str(int state)
@@ -1311,6 +1404,28 @@ char *job_state_str(int state)
     }
 }
 
+/* a stopped or continued job changes state on every host it runs on,
+ * not only on the first one that got the signal, the same walk as
+ * reset_host_resources(). Called after job->state changed */
+static void job_hosts_state(struct job_data *job)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
+
+        /* only an orphan runs on a stale host, nothing was charged */
+        if (h->stale)
+            continue;
+
+        if (job->state == JOB_SUSPENDED) {
+            h->num_run--;
+            h->num_susp++;
+        } else {
+            h->num_susp--;
+            h->num_run++;
+        }
+    }
+}
+
 void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
                           struct protocol_header *hdr)
 {
@@ -1326,35 +1441,49 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
 
     struct job_data *job = job_find(sig.job_id);
     if (job == NULL) {
-        LL_ERRX("signal reply for unknown job_id=%ld sig=%d errno=%d from=%s",
+        LL_ERRX("signal reply for unknown job=%ld sig=%d errno=%d from=%s",
                 sig.job_id, sig.sig, hdr->status, chan_addr_str(n->sbd_chan));
         return;
     }
 
+    /* frozen, mbd never signals an orphan, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, signal reply from sbd=%s ignored",
+                job->job_id, n->net.name);
+        return;
+    }
+
     if (hdr->status != MBD_OK) {
-        LL_ERRX("job_id=%ld signal=%d failed status=%d host=%s", job->job_id,
+        LL_ERRX("job=%ld signal=%d failed status=%d host=%s", job->job_id,
                 sig.sig, hdr->status, n->net.name);
         return;
     }
 
-    if (sig.sig == SIGSTOP || sig.sig == SIGTSTP) {
+    /* the state change is logged, a restart must find the job as sbd
+     * left it: a suspended job comes back suspended, see
+     * replay_job_susp(). A SIGCONT to a job already running changes
+     * nothing, see signal_one_job() */
+    if ((sig.sig == SIGSTOP || sig.sig == SIGTSTP)
+        && job->state == JOB_RUNNING) {
         job->state = JOB_SUSPENDED;
+        job->susp_time = time(NULL);
         job->queue->num_run--;
         job->queue->num_susp++;
-        n->num_susp++;
-        n->num_run--;
-    } else if (sig.sig == SIGCONT) {
+        job_hosts_state(job);
+        event_job_susp(job);
+    } else if (sig.sig == SIGCONT && job->state == JOB_SUSPENDED) {
         job->state = JOB_RUNNING;
+        job->susp_time = 0;
         job->queue->num_susp--;
         job->queue->num_run++;
-        n->num_susp--;
-        n->num_run++;
+        job_hosts_state(job);
+        event_job_resume(job);
     }
 
     LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
              job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
 
-    LL_INFO("job_id=%ld signal=%d delivered host=%s", job->job_id, sig.sig,
+    LL_INFO("job=%ld signal=%d delivered host=%s", job->job_id, sig.sig,
             n->net.name);
     // debug
     mbd_assert_counters();
@@ -1378,9 +1507,9 @@ void mbd_assert_counters(void)
         int num_susp = 0;
         int num_cpus_used = 0;
         int num_gpu_used = 0;
-        int num_orphan = 0;
 
-        assert(h->res.free_cpu >= 0);
+        /* free_cpu < 0 is legal: NCPU lowered in llb.hosts while jobs
+         * ran, the host drains and gets nothing new */
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;
@@ -1390,41 +1519,52 @@ void mbd_assert_counters(void)
 
             num_jobs++;
             num_cpus_used += job->res.num_cpus;
-            if (job->res.num_gpus > 0)
-                num_gpu_used += job->res.num_gpus;
+            num_gpu_used += job->res.num_gpus;
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
                 num_run++;
-            else if (job->state == JOB_ORPHAN)
-                num_orphan++;
             else
                 assert(0);
-
-            if (job->res.num_gpus > 0) {
-                int n = gpu_ids_count_free(&h->res.gpu);
-                int used = h->res.gpu.count - n;
-                if (job->res.num_gpus > used ||
-                    job->res.num_gpus > h->res.gpu.count) {
-                    LL_ERRX("job_id=%ld num_gpus=%d gpu_count=%d gpu_free=%d "
-                            "gpu_used=%d",
-                            job->job_id, job->res.num_gpus, h->res.gpu.count, n,
-                            used);
-                }
-            }
         }
+
+        /* orphans still running hold the host, see replay_rebuild_counters() */
+        for (je = orphan_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *) je;
+
+            if (!job_uses_host(job, h))
+                continue;
+
+            num_jobs++;
+            num_cpus_used += job->res.num_cpus;
+            num_gpu_used += job->res.num_gpus;
+            if (job->state == JOB_SUSPENDED)
+                num_susp++;
+            else if (job->state == JOB_RUNNING)
+                num_run++;
+            else
+                assert(0);
+        }
+
+        /* gpu ids in use on the host. More asked than the host has is
+         * legal after its GPU count was lowered under running jobs:
+         * then all are in use, see gpu_ids_mark_inuse() */
+        int gpu_used = h->res.gpu.count - gpu_ids_count_free(&h->res.gpu);
+        if (num_gpu_used > h->res.gpu.count)
+            num_gpu_used = h->res.gpu.count;
 
         /* This is the core of the function compare what we have
          * count based on the running jobs with the counters
          * on the host.
          */
         if (h->num_jobs != num_jobs || h->num_run != num_run ||
-            h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
+            h->num_susp != num_susp || h->num_cpus_used != num_cpus_used ||
+            gpu_used != num_gpu_used) {
             LL_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
-                    "cpus_used=%d/%d orphan=%d",
+                    "cpus_used=%d/%d gpus_used=%d/%d",
                     h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
                     h->num_susp, num_susp, h->num_cpus_used, num_cpus_used,
-                    num_orphan);
+                    gpu_used, num_gpu_used);
             assert(0);
         }
     }
@@ -1448,10 +1588,6 @@ void mbd_assert_counters(void)
                 num_held++;
             else if (job->state == JOB_PENDING)
                 num_pend++;
-            else if (job->state == JOB_BROKEN)
-                num_pend++;
-            else if (job->state == JOB_ORPHAN)
-                num_pend++;
             else
                 assert(0);
         }
@@ -1469,6 +1605,34 @@ void mbd_assert_counters(void)
                 num_run++;
             else
                 assert(0);
+        }
+
+        /* orphans count in their queue, see replay_rebuild_counters() */
+        for (je = orphan_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *) je;
+            if (job->queue != q)
+                continue;
+            num_jobs++;
+            switch (job->state) {
+            case JOB_HELD:
+                num_held++;
+                break;
+            case JOB_PENDING:
+                num_pend++;
+                break;
+            case JOB_RUNNING:
+                num_run++;
+                num_cpus_used += job->res.num_cpus * job->run_nhosts;
+                num_hosts_used += job->run_nhosts;
+                break;
+            case JOB_SUSPENDED:
+                num_susp++;
+                num_cpus_used += job->res.num_cpus * job->run_nhosts;
+                num_hosts_used += job->run_nhosts;
+                break;
+            default:
+                assert(0);
+            }
         }
 
         /* Compare the counters based on the running and pending jobs with
@@ -1500,13 +1664,19 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     struct job_data *job = job_find(wm.job_id);
     if (job == NULL) {
-        LL_ERRX("job_id=%ld not found", wm.job_id);
+        LL_ERRX("job=%ld not found", wm.job_id);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
         return 0;
     }
 
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, move refused", wm.job_id);
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
+        return 0;
+    }
+
     if (job->state != JOB_PENDING && job->state != JOB_HELD) {
-        LL_ERRX("job_id=%ld state=%s not movable", wm.job_id,
+        LL_ERRX("job=%ld state=%s not movable", wm.job_id,
                 job_state_str(job->state));
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EINVAL);
         return 0;
@@ -1514,20 +1684,20 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     struct mbd_queue *to = ll_hash_search(&queue_name_hash, wm.to_queue);
     if (to == NULL) {
-        LL_ERRX("job_id=%ld queue=%s not found", wm.job_id, wm.to_queue);
+        LL_ERRX("job=%ld queue=%s not found", wm.job_id, wm.to_queue);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
         return 0;
     }
 
     if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
-        LL_ERRX("job_id=%ld of uid=%d cannot be moved by uid=%d", job->job_id,
+        LL_ERRX("job=%ld of uid=%d cannot be moved by uid=%d", job->job_id,
                 job->uid, hdr->uid);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
         return 0;
     }
 
     if (!queue_user_allowed(to, job->user)) {
-        LL_ERRX("job_id=%ld user=%s not allowed in queue=%s", wm.job_id,
+        LL_ERRX("job=%ld user=%s not allowed in queue=%s", wm.job_id,
                 job->user, to->name);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
         return 0;
@@ -1552,7 +1722,7 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         to->num_held++;
     to->num_jobs++;
 
-    LL_INFO("job_id=%ld moved from=%s to=%s", wm.job_id, from->name, to->name);
+    LL_INFO("job=%ld moved from=%s to=%s", wm.job_id, from->name, to->name);
 
     enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, MBD_OK);
 
@@ -1567,23 +1737,30 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 static int finish_pending_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
-    LL_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT", (long) job->job_id,
-            ws->sig);
+    LL_INFO("job=%ld sig=%d -> EXIT", job->job_id, ws->sig);
     job->signal_time = job->end_time = time(NULL);
 
-    if (job->state == JOB_PENDING)
-        job->queue->num_pend--;
+    /* a pending orphan is killed by bkill -s 9 only, its queue may be
+     * stale and was not counted, see replay_rebuild_counters() */
+    struct ll_list *from = &pend_jobs_list;
+    if (job->list_id == JOB_LIST_ORPHAN)
+        from = &orphan_jobs_list;
 
-    if (job->state == JOB_HELD)
-        job->queue->num_held--;
+    if (!job->queue->stale) {
+        if (job->state == JOB_PENDING)
+            job->queue->num_pend--;
 
-    job->queue->num_jobs--;
+        if (job->state == JOB_HELD)
+            job->queue->num_held--;
+
+        job->queue->num_jobs--;
+    }
 
     job->state = JOB_EXITED;
     job_deps_release(job);
     event_job_signal(job, ws);
     event_job_finish(job);
-    job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+    job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
     job_array_element_finished(job);
 
     return MBD_OK;
@@ -1596,8 +1773,7 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
 
     job->state = JOB_HELD;
     job->signal_time = time(NULL);
-    LL_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP", (long) job->job_id,
-            ws->sig);
+    LL_INFO("job=%ld sig=%d -> PSUSP", job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_susp(job);
 
@@ -1618,8 +1794,7 @@ static int resume_pending_job(struct job_data *job,
 
     job->state = JOB_PENDING;
     job->signal_time = time(NULL);
-    LL_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND", (long) job->job_id,
-            ws->sig);
+    LL_INFO("job=%ld sig=%d -> PEND", job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_resume(job);
 
@@ -1632,56 +1807,59 @@ static int resume_pending_job(struct job_data *job,
     return MBD_OK;
 }
 
-static int signal_pending_job(struct job_data *job,
-                              const struct wire_job_sig *ws)
+/*
+ * bkill -s 9 on a running, suspended or dispatched job, orphan or not.
+ * No mercy, like kill -9: mbd finishes the job now, as if sbd had
+ * reported the finish, and tells sbd to kill it if sbd is there. If
+ * sbd is not there the kill is only logged, the job ends anyway.
+ *
+ * The job keeps end_time and run_hosts on the finished list: a pid
+ * reply, a reject or a finish crossing the kill on the wire meets a
+ * finished job and is acked or dropped, see mbd_new_job_reply() and
+ * mbd_job_finish(). The run limit and bservices -d send SIGKILL
+ * through signal_running_job() and wait for sbd, they never get here.
+ */
+static int kill_running_job(struct job_data *job, struct wire_job_sig *req)
 {
-    switch (ws->sig) {
-    case SIGTERM:
-    case SIGINT:
-    case SIGKILL:
-        return finish_pending_job(job, ws);
-    case SIGSTOP:
-    case SIGTSTP:
-        return stop_pending_job(job, ws);
-    case SIGCONT:
-        return resume_pending_job(job, ws);
-    default:
-        LL_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
-                 (long) job->job_id, ws->sig);
-        return EINVAL;
-    }
-}
+    struct mbd_queue *q = job->queue;
+    struct ll_list *from = &run_jobs_list;
+    if (job->list_id == JOB_LIST_ORPHAN)
+        from = &orphan_jobs_list;
 
-static int signal_running_job(struct job_data *job,
-                              const struct wire_job_sig *ws)
-{
-    if (job->run_hosts[0]->sbd_chan < 0) {
-        LL_INFO("job_id=%ld unknown on disconnected host=%s cannot signal it",
-                job->job_id, job->run_hosts[0]->net.name);
-        return EAGAIN;
-    }
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_SBD_JOB_SIGNAL;
-    hdr.status = MBD_OK;
+    assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
 
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
-               job->run_hosts[0]->net.name);
-        return EAGAIN;
+    if (signal_running_job(job, req) != MBD_OK) {
+        job->signal_time = time(NULL);
+        event_job_signal(job, req);
     }
 
-    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
-                        LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
-        LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
-        return EAGAIN;
+    /* host counters depend on the state, release before changing it */
+    reset_host_resources(job);
+    token_pool_release(job);
+
+    /* a stale queue was not counted, see replay_rebuild_counters() */
+    if (!q->stale) {
+        if (job->state == JOB_RUNNING)
+            q->num_run--;
+        else
+            q->num_susp--;
+        q->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
+        q->num_hosts_used -= job->run_nhosts;
+        q->num_jobs--;
     }
 
-    job->signal_time = time(NULL);
-    event_job_signal(job, ws);
+    job->end_time = time(NULL);
+    job->exit_status = SIGKILL; /* the wait status sbd would report */
+    job->state = JOB_EXITED;
 
-    LL_INFO("job_id=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
+    job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
+    job_array_element_finished(job);
+    event_job_finish(job);
+
+    LL_INFO("job=%ld killed -9 on host=%s, finished by mbd", job->job_id,
             job->run_hosts[0]->net.name);
+
+    mbd_assert_counters();
 
     return MBD_OK;
 }
@@ -1695,45 +1873,53 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
                           struct wire_job_sig *req)
 {
     if (job->uid != uid && !is_manager(uid)) {
-        LL_ERR("job_id=%ld uid=%d not owned by signaling uid=%d", job->job_id,
+        LL_ERR("job=%ld uid=%d not owned by signaling uid=%d", job->job_id,
                job->uid, uid);
         return EPERM;
     }
 
+    /* frozen until the config is fixed, see replay_mark_orphans().
+     * Only bkill -s 9 gets through, it ends the job for good. */
+    if (job->list_id == JOB_LIST_ORPHAN && req->sig != SIGKILL) {
+        LL_ERRX("job=%ld is orphan, signal=%d refused", job->job_id,
+                req->sig);
+        return EPERM;
+    }
+
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {
-        LL_DEBUG("job_signal: job_id=%ld already finished", job->job_id);
+        LL_DEBUG("job_signal: job=%ld already finished", job->job_id);
         return EINVAL;
     }
 
     if ((req->sig == SIGSTOP || req->sig == SIGTSTP) &&
         (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
-        LL_DEBUG("job_signal: job_id=%ld already suspended no-op", job->job_id);
+        LL_DEBUG("job_signal: job=%ld already suspended no-op", job->job_id);
         return MBD_OK;
     }
 
-    if (req->sig == SIGCONT &&
-        (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
-        LL_DEBUG("job_signal: job_id=%ld SIGCONT no-op", job->job_id);
+    /* a SIGCONT to a running job goes to sbd anyway: harmless to a
+     * running process, and it frees one mbd wrongly thinks running */
+    if (req->sig == SIGCONT && job->state == JOB_PENDING) {
+        LL_DEBUG("job_signal: job=%ld SIGCONT no-op", job->job_id);
         return MBD_OK;
     }
 
     req->job_id = job->job_id;
 
-    if (job->state == JOB_ORPHAN || job->state == JOB_BROKEN) {
-        const char *host = "-";
-        if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
-            host = job->run_hosts[0]->net.name;
-
-        LL_INFO("job_id=%ld state=%s host=%s terminating it", job->job_id,
-                llb_job_state_str(job->state), host);
-
-        return signal_pending_job(job, req);
-    }
-
     if (job->state == JOB_PENDING || job->state == JOB_HELD)
         return signal_pending_job(job, req);
 
-    return signal_running_job(job, req);
+    if (req->sig == SIGKILL)
+        return kill_running_job(job, req);
+
+    int cc = signal_running_job(job, req);
+    if (cc != 0) {
+        LL_ERRX("failed signal running job=%ld signal=%d", job->job_id,
+                req->sig);
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
@@ -1793,6 +1979,12 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->state == JOB_PENDING || job->state == JOB_HELD);
 
+        if (job_is_service(job)) {
+            LL_DEBUG("job=%ld is a service job; skipping bulk signaling",
+                     job->job_id);
+            continue;
+        }
+
         if (job->uid != uid && !is_manager(uid))
             continue;
 
@@ -1801,26 +1993,34 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
         // Best effort, even if one failed keep going
         signal_pending_job(job, req);
     }
-    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+    /* kill_running_job() moves the job off the list, keep next */
+    for (e = run_jobs_list.head; e != NULL; e = next) {
+        next = e->next;
         job = (struct job_data *) e;
 
         assert(job->run_hosts[0]);
-        if (job->state == JOB_ORPHAN || job->state == JOB_BROKEN) {
-            LL_INFO("job_id=%ld state=%s skipped by bulk signal", job->job_id,
-                    llb_job_state_str(job->state));
+
+        if (job_is_service(job))
+            continue;
+
+        if (job->uid != uid && !is_manager(uid))
+            continue;
+
+        /* -9 has no mercy, a disconnected host does not stop it */
+        if (req->sig == SIGKILL) {
+            n++;
+            req->job_id = job->job_id;
+            kill_running_job(job, req);
             continue;
         }
+
         if (job->run_hosts[0]->sbd_chan < 0) {
-            LL_INFO(
-                "job_id=%ld unknown on disconnected host=%s cannot signal it",
-                job->job_id, job->run_hosts[0]->net.name);
+            LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+                    job->job_id, job->run_hosts[0]->net.name);
             continue;
         }
 
         assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
-
-        if (job->uid != uid && !is_manager(uid))
-            continue;
 
         n++;
         req->job_id = job->job_id;
@@ -1838,19 +2038,25 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     if (!xdr_wire_job_sig(xdrs, &req)) {
         LL_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
+
     }
     // save the uid coming from the header rather then the protocol
     req.uid = hdr->uid;
 
-    LL_DEBUG("job_id=%ld array_index=%d by uid=%u sig=%d chan_id=%d",
-             (long) req.job_id, req.array_index, req.uid, req.sig, chan_id);
+    LL_DEBUG("job=%ld array_index=%d by uid=%u sig=%d chan_id=%d",
+             req.job_id, req.array_index, req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
         signal_jobs_scan(hdr->uid, &req);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
-    struct job_data *job;
+    struct job_data *job = job_find(req.job_id);
+    if (job != NULL && job_is_service(job)) {
+        LL_INFO("job=%ld is a service job; use bservices -d host:port",
+                job->job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EOPNOTSUPP);
+    }
 
     if (req.array_index != 0) {
         /*
@@ -1860,7 +2066,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          */
         job = job_find_array(req.job_id, req.array_index);
         if (job == NULL) {
-            LL_INFO("job_signal: array_id=%ld[%d] not found", (long) req.job_id,
+            LL_INFO("job_signal: array_id=%ld[%d] not found", req.job_id,
                     req.array_index);
             return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
         }
@@ -1884,7 +2090,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          */
         job = job_find(req.job_id);
         if (job == NULL) {
-            LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
+            LL_INFO("job_signal: job=%ld not found", req.job_id);
             return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
         }
 
@@ -1902,6 +2108,181 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
 }
 
+int signal_running_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    if (job->run_hosts[0]->sbd_chan < 0) {
+        LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+                job->job_id, job->run_hosts[0]->net.name);
+        return EAGAIN;
+    }
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SBD_JOB_SIGNAL;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               job->run_hosts[0]->net.name);
+        return EAGAIN;
+    }
+
+    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
+                        LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
+        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
+        return EAGAIN;
+    }
+
+    job->signal_time = time(NULL);
+    event_job_signal(job, ws);
+
+    LL_INFO("job=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
+            job->run_hosts[0]->net.name);
+
+    return MBD_OK;
+}
+
+int signal_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    switch (ws->sig) {
+    case SIGTERM:
+    case SIGINT:
+    case SIGKILL:
+        return finish_pending_job(job, ws);
+    case SIGSTOP:
+    case SIGTSTP:
+        return stop_pending_job(job, ws);
+    case SIGCONT:
+        return resume_pending_job(job, ws);
+    default:
+        LL_DEBUG("signal_pending_job: job=%ld sig=%d unsupported",
+                 job->job_id, ws->sig);
+        return EINVAL;
+    }
+}
+
+/* term_time is absolute, run_start + run_limit counts from the
+ * first fork, both span the whole life of the job across relocations
+ */
+int job_time_expired(const struct job_data *job, time_t now)
+{
+    if (job->term_time > 0 && now >= job->term_time)
+        return 1;
+
+    if (job->run_limit > 0 && job->run_start > 0
+        && now >= job->run_start + job->run_limit)
+        return 1;
+
+    return 0;
+}
+
+/* The job ran out of time while pending: never dispatched before its
+ * term_time, or a relocated job whose run limit expired. Dispatching
+ * it would only get it killed, finish it here.
+ */
+void job_expire_pending(struct job_data *job)
+{
+    assert(job->state == JOB_PENDING);
+
+    struct wire_job_sig sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.job_id = job->job_id;
+    sig.sig = SIGKILL;
+    sig.uid = mbd_mgr.uid;
+
+    LL_INFO("job=%ld time expired while pending term_time=%ld "
+            "run_start=%ld run_limit=%d", job->job_id, job->term_time,
+            job->run_start, job->run_limit);
+
+    finish_pending_job(job, &sig);
+
+    if (job_is_service(job))
+        service_pending_finished(job->svc_inst);
+}
+
+/* seconds between SIGTERM and SIGKILL, same grace as sbd's terminate */
+#define RUN_LIMIT_GRACE 60
+
+/* Run limit spans relocations, only mbd sees the whole life of the
+ * job, so mbd enforces it. A dispatched job without pid is in the
+ * dispatch window, its clock has not started. SIGTERM at the limit,
+ * then SIGKILL every grace period until sbd reports the finish. A
+ * signal not sent because sbd is disconnected leaves signal_time
+ * untouched, so it is retried on the next tick.
+ */
+void jobs_run_limit_check(void)
+{
+    time_t now = time(NULL);
+
+    for (struct ll_list_entry *e = run_jobs_list.head; e != NULL;
+         e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->run_limit <= 0 || job->pid == 0)
+            continue;
+
+        time_t deadline = job->run_start + job->run_limit;
+        if (now < deadline)
+            continue;
+
+        struct wire_job_sig sig;
+        memset(&sig, 0, sizeof(sig));
+        sig.job_id = job->job_id;
+        sig.uid = mbd_mgr.uid;
+
+        if (job->signal_time < deadline)
+            sig.sig = SIGTERM;
+        else if (now >= job->signal_time + RUN_LIMIT_GRACE)
+            sig.sig = SIGKILL;
+        else
+            continue;
+
+        LL_INFO("job=%ld run_limit=%d reached run_start=%ld sig=%d",
+                job->job_id, job->run_limit, job->run_start, sig.sig);
+
+        int rc = signal_running_job(job, &sig);
+        if (rc != MBD_OK)
+            LL_ERRX("job=%ld run limit signal=%d not sent rc=%d",
+                    job->job_id, sig.sig, rc);
+    }
+}
+
+/* A dispatched job without pid shows as DISP. A connected sbd resends
+ * the pid until acked, if it stays silent for PID_TIMEOUT something
+ * is wrong: sbd hosed, or a reply lost. Treat the sbd as unresponsive
+ * and close its channel. Its jobs show UNKNOWN, like for any
+ * disconnected sbd, and when it registers again the run list resyncs
+ * the job: pid resent, or BATCH_JOB_MISSING and back to pending.
+ * A disconnected sbd is skipped, its registration resolves the job.
+ * Checked every PID_TIMEOUT seconds, no need to do it more often.
+ */
+void jobs_pid_timeout_check(void)
+{
+    static time_t last_check;
+    time_t now = time(NULL);
+
+    if (now - last_check < PID_TIMEOUT)
+        return;
+    last_check = now;
+
+    for (struct ll_list_entry *e = run_jobs_list.head; e != NULL;
+         e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+        struct mbd_host *h = job->run_hosts[0];
+
+        if (job->state != JOB_RUNNING || job->pid != 0)
+            continue;
+        if (h->sbd_chan < 0)
+            continue;
+        if (now - job->pid_wait_time < PID_TIMEOUT)
+            continue;
+
+        LL_ERRX("job=%ld no pid from sbd=%s in %ld secs, disconnecting it",
+                job->job_id, h->net.name,
+                (long) (now - job->pid_wait_time));
+        mbd_sbd_disconnect(h);
+    }
+}
+
 int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_priority wp;
@@ -1913,30 +2294,35 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     struct job_data *job = job_find(wp.job_id);
     if (job == NULL) {
-        LL_INFO("job_id=%ld not found", wp.job_id);
+        LL_INFO("job=%ld not found", wp.job_id);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, ESRCH);
     }
 
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, priority change refused", wp.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
+    }
+
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {
-        LL_INFO("job_priority: job_id=%ld already finished", wp.job_id);
+        LL_INFO("job_priority: job=%ld already finished", wp.job_id);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
     }
 
     /* ownership check — admin can bypass */
     if (job->uid != (uid_t) hdr->uid && !is_manager(hdr->uid)) {
-        LL_INFO("job_id=%ld uid=%u not owner", wp.job_id, hdr->uid);
+        LL_INFO("job=%ld uid=%u not owner", wp.job_id, hdr->uid);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
     }
 
     /* non-admin cannot exceed queue priority */
     if (!is_manager(hdr->uid) && wp.priority > job->queue->priority) {
-        LL_INFO("job_id=%ld priority=%d exceeds queue=%d", wp.job_id,
+        LL_INFO("job=%ld priority=%d exceeds queue=%d", wp.job_id,
                 wp.priority, job->queue->priority);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
     }
 
     if (wp.priority < 0) {
-        LL_INFO("job_id=%ld invalid priority=%d specified", job->job_id,
+        LL_INFO("job=%ld invalid priority=%d specified", job->job_id,
                 wp.priority);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
     }
@@ -1952,7 +2338,7 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     event_job_priority(job, old_priority);
 
-    LL_INFO("job_id=%ld priority old=%d new=%d", wp.job_id, old_priority,
+    LL_INFO("job=%ld priority old=%d new=%d", wp.job_id, old_priority,
             job->priority);
 
     return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, MBD_OK);
@@ -1971,36 +2357,42 @@ int gpu_ids_count_free(const struct mbd_gpu *g)
 }
 
 /* Mark num_gpus devices as free. This is called after job finishes.
+ * Fewer than num_gpus in use is legal: the GPU count was lowered in
+ * llb.hosts while the job ran.
  */
 int gpu_ids_mark_free(struct mbd_gpu *g, int num_gpus)
 {
     int freed = 0;
 
-    assert(g->count >= num_gpus);
-    for (int i = 0; i < num_gpus; i++) {
+    for (int i = 0; i < g->count && freed < num_gpus; i++) {
         if (g->ids[i].in_use == 1) {
             g->ids[i].in_use = 0;
             freed++;
         }
     }
-    assert(freed == num_gpus);
+    if (freed < num_gpus)
+        LL_INFO("gpu ids=%s freed=%d of %d, GPU count lowered under a "
+                "running job", g->gpu_ids, freed, num_gpus);
     return freed;
 }
 
 /* Mark num_gpus devices as used. This is called after scheduling
- * and after replay to restore the in use device ids.
+ * and after replay to restore the in use device ids. Fewer free than
+ * num_gpus is legal after the GPU count was lowered in llb.hosts: all
+ * are marked, the host has none free until it drains.
  */
 int gpu_ids_mark_inuse(struct mbd_gpu *g, int num_gpus)
 {
     int marked = 0;
 
-    assert(g->count >= num_gpus);
-    for (int i = 0; i < num_gpus; i++) {
+    for (int i = 0; i < g->count && marked < num_gpus; i++) {
         if (g->ids[i].in_use == 0) {
             g->ids[i].in_use = 1;
             marked++;
         }
     }
-    assert(marked == num_gpus);
+    if (marked < num_gpus)
+        LL_INFO("gpu ids=%s marked=%d of %d, GPU count lowered under "
+                "running jobs", g->gpu_ids, marked, num_gpus);
     return marked;
 }

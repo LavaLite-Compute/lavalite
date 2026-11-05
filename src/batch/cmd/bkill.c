@@ -175,18 +175,25 @@ int main(int argc, char **argv)
         }
 
         if (llb_signal_job(jobid, array_index, sig) < 0) {
+            /* services are stopped only by bservices -d */
+            if (errno == EOPNOTSUPP) {
+                fprintf(stderr, "bkill: job <%s> is a service, use "
+                        "bservices -d %s\n", argv[optind], argv[optind]);
+                continue;
+            }
             fprintf(stderr, "bkill: failed to signal job <%s>: %m\n",
                     argv[optind]);
             continue;
         }
 
         if (jobid == 0)
-            printf("All your jobs are being signaled\n");
+            printf("All your batch jobs are being signaled, services "
+                   "excluded (bservices -d)\n");
         else if (array_index != 0)
-            printf("Job <%ld[%d]> is being signaled\n", (long) jobid,
+            printf("Job <%ld[%d]> is being signaled\n", jobid,
                    array_index);
         else
-            printf("Job <%ld> is being signaled\n", (long) jobid);
+            printf("Job <%ld> is being signaled\n", jobid);
 
         signaled = 1;
     }
