@@ -98,6 +98,8 @@ struct job_data {
     char depend_cond[LL_BUFSIZ_4K]; /* raw text, for compaction rewrite */
     int32_t
         dep_refcnt; /* pending jobs whose deps still reference this job_id */
+    int deps_done;  /* dependency consumed at first dispatch, never
+                     * evaluated again, see job_deps_release() */
     struct job_resources res; /* requested at submit */
     int run_nhosts;           /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;

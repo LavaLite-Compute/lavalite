@@ -1049,6 +1049,12 @@ int job_dep_satisfied(const struct job_data *job)
     if (job->deps.count == 0)
         return 1;
 
+    /* consumed at the first dispatch: a job back to pending after a
+     * reject or a missing report has its dependency satisfied, the
+     * jobs it referenced may be purged by now */
+    if (job->deps_done)
+        return 1;
+
     int cc = dep_list_eval(&job->deps, dep_call_eval, NULL);
     if (cc > 0)
         return 1;
@@ -1096,14 +1102,25 @@ void job_deps_hold(struct job_data *job)
 }
 
 /*
- * job_deps_release - called once, either when job's dependency
- * expression becomes satisfied (sched.c, about to dispatch) or when
- * job is killed/removed while still pending on it (finish_pending_job).
- * Either way job will never consult these targets again.
+ * job_deps_release - called when job's dependency expression becomes
+ * satisfied (sched.c, about to dispatch) or when job is killed/removed
+ * while still pending on it (finish_pending_job). Either way job will
+ * never consult these targets again.
+ *
+ * A job can be dispatched more than once (sbd reject, sbd missing
+ * report), the release happens only the first time: deps_done marks
+ * it, and is persisted so a replay does not hold again.
  */
 void job_deps_release(struct job_data *job)
 {
+    if (job->deps.count == 0)
+        return;
+
+    if (job->deps_done)
+        return;
+
     job_deps_refcnt(job, -1);
+    job->deps_done = 1;
 }
 
 int job_init(void)

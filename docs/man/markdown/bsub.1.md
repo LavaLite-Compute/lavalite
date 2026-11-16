@@ -141,6 +141,9 @@ desktop session or display server are not propagated.
     **done(**_id_**) || exit(**_id_**)**. Terms may be combined with
     **&&**, **||**, **!**, and parentheses; **&&** binds tighter than
     **||**. The referenced job ID must exist at submit time.
+    The expression is consumed when the job is first dispatched: if
+    the job later returns to pending (for example after a reject by
+    sbd), it is not evaluated again. This holds for **!** too.
 
 ## Informational
 

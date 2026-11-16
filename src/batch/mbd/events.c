@@ -214,12 +214,13 @@ static void replay_rebuild_counters(void)
      * dep_refcnt is derived state, not persisted directly (see
      * job_replay_deps()). Rebuild it here, once every job_id from the
      * manifest is in job_id_hash, by walking every still-pending job's
-     * dependency expression and re-establishing its holds.
+     * dependency expression and re-establishing its holds. A job with
+     * deps_done set released at its first dispatch, it holds nothing.
      */
     for (e = pend_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
 
-        if (job->deps.count > 0)
+        if (job->deps.count > 0 && job->deps_done == 0)
             job_deps_hold(job);
     }
     /* an orphan is a live job, frozen: its dependencies stay held so
@@ -227,7 +228,7 @@ static void replay_rebuild_counters(void)
     for (e = orphan_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
 
-        if (job->deps.count > 0)
+        if (job->deps.count > 0 && job->deps_done == 0)
             job_deps_hold(job);
     }
 
@@ -703,6 +704,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     }
 
     job_replay_deps(job, e->depend_cond);
+    job->deps_done = e->deps_done;
 
     return job;
 }
@@ -774,8 +776,9 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
     }
 
     LL_DEBUG("JOB_NEW job=%ld array_id=%ld array_index=%d depend=%s "
-             "flags=0x%x", e.job_id, e.array_id, e.array_index,
-             (e.depend_cond[0] != 0) ? e.depend_cond : "none",
+             "deps_done=%d flags=0x%x",
+             e.job_id, e.array_id, e.array_index,
+             (e.depend_cond[0] != 0) ? e.depend_cond : "none", e.deps_done,
              e.flags);
 
     if (job->flags & JOB_FLAG_SERVICE)
@@ -849,6 +852,9 @@ static void replay_job_start(const struct event_rec *rec)
 
     job->state = JOB_RUNNING;
     job->dispatch_time = e.dispatch_time;
+    /* sched.c released the dependency at this dispatch */
+    if (job->deps.count > 0)
+        job->deps_done = 1;
     ll_strlcpy(job->gpu_assigned, e.gpu_assigned, sizeof(job->gpu_assigned));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
@@ -1396,6 +1402,7 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     ll_strlcpy(e.depend_cond, job->depend_cond, sizeof(e.depend_cond));
     e.run_limit = job->run_limit;
     e.run_start = job->run_start;
+    e.deps_done = job->deps_done;
 
     if (job_is_service(job)) {
         ll_strlcpy(e.service_name, job->svc_inst->svc->name,

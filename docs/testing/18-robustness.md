@@ -15,6 +15,7 @@ These tests cover:
 - orphan jobs, see *Orphan Jobs*
 - `bkill -s kill`, see `bkill(1)`
 - `LL_MBD_JOB_FINISH_PERIOD`, see `ll.conf(5)`
+- `--dependency` across a reject, see `bsub(1)`
 
 ## Prerequisites
 
@@ -553,6 +554,68 @@ A finish from `sbd` for a job never dispatched to it does not crash
 that had none and died, again at every restart, as `sbd` resends the
 finish. A finish is acked unless the job is an orphan: only then does
 `mbd` need it later.
+
+### TEST-266: Dependency survives a reject and a purged target (manual)
+
+With `LL_MBD_JOB_FINISH_THRESHOLD=1` and `LL_MBD_JOB_FINISH_PERIOD=0`
+so every restart compacts.
+
+#### Commands
+
+```sh
+bsub true                                              # j1, wait DONE
+# on worker1, make sbd fail to create the job directory
+bsub --machines worker1 --dependency "done(<j1>)" sleep 10   # j2
+bjobs <j2>                                             # PEND, rejected
+# restart mbd
+bjobs -a <j1>
+# restore worker1, wait 60 seconds
+bjobs <j2>; bhist <j2>
+```
+
+#### Expected Result
+
+- `j2` is rejected once and `worker1` is tainted, as in TEST-235.
+- The restart drops `j1`: `bjobs -a <j1>` does not find it.
+- The `mbd` replay log has `JOB_NEW job=<j2> ... deps_done=1`.
+- When the taint expires `j2` runs and is `DONE`.
+
+#### Pass Criteria
+
+A job back to pending after its first dispatch keeps its dependency
+satisfied, even when the job it depended on is gone. Before the fix
+`j2` stayed `PEND` on its dependency forever.
+
+### TEST-267: Second dispatch does not release the dependency again (manual)
+
+Same configuration as TEST-266.
+
+#### Commands
+
+```sh
+bsub true                                              # j1, wait DONE
+bsub --hold --dependency "done(<j1>)" true             # j3, holds j1
+# on worker1, make sbd fail to create the job directory
+bsub --machines worker1 --dependency "done(<j1>)" sleep 10   # j2
+# restore worker1, wait 60 seconds, j2 runs and is DONE
+# restart mbd
+bjobs -a <j1>
+bkill --signal cont <j3>
+bjobs <j3>
+```
+
+#### Expected Result
+
+- `j2` is dispatched twice, rejected once.
+- The restart keeps `j1`: `mbd` logs
+  `job=<j1> retained by compaction dep_refcnt=1`, held by `j3`.
+- `j3` runs and is `DONE`.
+
+#### Pass Criteria
+
+`j1` is held as long as `j3` waits on it. Before the fix the second
+dispatch of `j2` released `j1` again, its count went to 0, the
+restart dropped it and `j3` stayed `PEND` on its dependency forever.
 
 ---
 

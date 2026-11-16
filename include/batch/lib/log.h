@@ -95,6 +95,8 @@ struct log_job_new {
     int32_t run_limit; /* seconds from run_start, 0 = none */
     time_t run_start;  /* first fork, kept across relocations; written
                         * by compaction, 0 in a submit record */
+    int32_t deps_done; /* dependency consumed at dispatch; written by
+                        * compaction, 0 in a submit record */
 };
 
 /* log_job_start: mbd dispatched the job to sbd.
