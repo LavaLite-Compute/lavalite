@@ -32,6 +32,8 @@ mkdir -p $CONF $QA/state $QA/log
 cp "$(dirname "$0")/../../../etc/ll.auth.key" $CONF/ 2>/dev/null ||
     echo "simqa-test-key-0123456789abcdef" > $CONF/ll.auth.key
 echo "simqa-daemon-key-0123456789abcd" > $CONF/ll.daemon.key
+# requests are signed by llsign from the build tree, not installed
+export LL_SIGN=$BIN/cmd/llsign
 
 # ---------------------------------------------------------------- config
 
@@ -116,7 +118,7 @@ END
 as_user()
 {
     su "$U" -s /bin/bash -c \
-        "export LL_CONF_DIR=$CONF PATH=$BIN/cmd:\$PATH; cd /tmp; $*"
+        "export LL_CONF_DIR=$CONF LL_SIGN=$LL_SIGN PATH=$BIN/cmd:\$PATH; cd /tmp; $*"
 }
 
 mbd_start()
