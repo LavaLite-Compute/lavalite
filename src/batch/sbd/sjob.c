@@ -133,7 +133,7 @@ static int sbd_job_new_reply_err(int64_t job_id, int err)
     r.state = JOB_PENDING;
 
     if (sbd_send_msg(BATCH_NEW_JOB_REPLY, err, &r, LL_BUFSIZ_1K,
-                     (bool_t(*)()) xdr_wire_job_reply) < 0) {
+                     (bool_t(*)(XDR *, void *)) xdr_wire_job_reply) < 0) {
         LL_ERR("job=%ld error reply enqueue failed", job_id);
         return -1;
     }
@@ -915,7 +915,7 @@ int sbd_job_new_reply(struct sbd_job *job)
     r.ext_port = job->ext_port;
 
     if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
-                     (bool_t(*)()) xdr_wire_job_reply) < 0) {
+                     (bool_t(*)(XDR *, void *)) xdr_wire_job_reply) < 0) {
         LL_ERR("job=%ld sbd_send_msg failed", job->job_id);
         return -1;
     }
@@ -1015,7 +1015,7 @@ int sbd_job_finish(struct sbd_job *job)
     f.cpu_time = job->res_usage.cpu_time;
 
     if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &f, LL_BUFSIZ_1K,
-                     (bool_t(*)()) xdr_wire_job_finish) < 0) {
+                     (bool_t(*)(XDR *, void *)) xdr_wire_job_finish) < 0) {
         LL_ERR("job=%ld sbd_job_finish sbd_send_msg failed", job->job_id);
         return -1;
     }
@@ -1149,7 +1149,7 @@ int sbd_job_signal(XDR *xdrs)
 
 reply:
     if (sbd_send_msg(BATCH_SBD_JOB_SIGNAL_REPLY, status, &sig, LL_BUFSIZ_1K,
-                     (bool_t(*)()) xdr_wire_job_sig) < 0) {
+                     (bool_t(*)(XDR *, void *)) xdr_wire_job_sig) < 0) {
         LL_ERRX("job=%ld signal reply enqueue failed status=%d", sig.job_id,
                 status);
         return -1;
@@ -1169,7 +1169,7 @@ int sbd_enqueue_job_missing(int64_t job_id)
     js.state = -1;
 
     if (sbd_send_msg(BATCH_JOB_MISSING, MBD_OK, &js, LL_BUFSIZ_1K,
-                     (bool_t(*)()) xdr_wire_job_state) < 0) {
+                     (bool_t(*)(XDR *, void *)) xdr_wire_job_state) < 0) {
         LL_ERR("missing job=%ld enqueue failed", job_id);
         return -1;
     }

@@ -10,7 +10,8 @@
 #include "base/lib/ll.protocol.h"
 #include "base/lib/ll.bufsiz.h"
 
-bool_t ll_encode_msg(XDR *xdrs, void *payload, bool_t (*xdr_func)(),
+bool_t ll_encode_msg(XDR *xdrs, void *payload,
+                     bool_t (*xdr_func)(XDR *, void *),
                      struct protocol_header *hdr)
 {
     xdr_setpos(xdrs, PACKET_HEADER_SIZE);
@@ -31,8 +32,8 @@ bool_t ll_encode_msg(XDR *xdrs, void *payload, bool_t (*xdr_func)(),
 }
 
 bool_t ll_encode_msg2(XDR *xdrs, struct protocol_header *hdr, void *payload,
-                      bool_t (*xdr_func)(), void *payload2,
-                      bool_t (*xdr_func2)())
+                      bool_t (*xdr_func)(XDR *, void *), void *payload2,
+                      bool_t (*xdr_func2)(XDR *, void *))
 {
     xdr_setpos(xdrs, PACKET_HEADER_SIZE);
 

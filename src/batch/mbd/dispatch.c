@@ -213,7 +213,8 @@ static int jobs_info_ref(int chan_id, const struct protocol_header *hdr,
     rep_hdr.status = MBD_OK;
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
-                        xdr_wire_job_info_array) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_info_array) <
+        0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
@@ -280,7 +281,8 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
     rep_hdr.status = MBD_OK;
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
-                        xdr_wire_job_info_array) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_info_array) <
+        0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
@@ -372,7 +374,8 @@ int queues_info(XDR *xdrs, int chan_id)
     hdr.status = MBD_OK;
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz,
-                        xdr_wire_queue_info_array) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_queue_info_array) <
+        0) {
         LL_ERR("queue_info: enqueue_payload failed");
         goto fail;
     }
@@ -430,7 +433,8 @@ int host_group_info(XDR *xdrs, int chan_id)
     size_t siz = PACKET_HEADER_SIZE
         + xdr_sizeof((xdrproc_t)xdr_wire_group_info_array, &reply);
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_group_info_array) <
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_group_info_array) <
         0) {
         LL_ERR("host_group_info: enqueue_payload failed");
         free(groups);
@@ -494,7 +498,8 @@ int hosts_info(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_HOST_INFO_ACK;
     hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_host_info_array) <
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_host_info_array) <
         0) {
         LL_ERR("host_info: enqueue_payload failed");
         free(hosts);
@@ -542,8 +547,9 @@ int tokens_info(XDR *xdrs, int chan_id)
     size_t bufsz = PACKET_HEADER_SIZE
         + xdr_sizeof((xdrproc_t)xdr_wire_token_info_array, &w);
 
-    int rc = enqueue_payload(chan_id, &hdr, &w, bufsz,
-                             (bool_t(*)()) xdr_wire_token_info_array);
+    int rc =
+        enqueue_payload(chan_id, &hdr, &w, bufsz,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_token_info_array);
     if (rc < 0) {
         LL_ERRX("enqueue_payload sized=%zu failed", bufsz);
         free(w.tokens);
@@ -669,7 +675,8 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         + xdr_sizeof((xdrproc_t)xdr_wire_svc_info_array, &reply);
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
-                        xdr_wire_svc_info_array) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_svc_info_array) <
+        0) {
         LL_ERR("enqueue_payload failed");
         for (int i = 0; i < n; i++)
             free(svc[i].instances);

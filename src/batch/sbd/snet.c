@@ -20,7 +20,7 @@
 
 static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
                                    void *payload, size_t siz,
-                                   bool_t (*xdr_func)())
+                                   bool_t (*xdr_func)(XDR *, void *))
 {
     struct chan_buffer *buf;
     XDR xdrs;
@@ -180,7 +180,7 @@ int sbd_register(void)
     ll_strlcpy(reg.hostname, host, sizeof(reg.hostname));
 
     if (sbd_send_msg(BATCH_SBD_REGISTER, MBD_OK, &reg, LL_BUFSIZ_1K,
-                     xdr_wire_sbd_register) < 0) {
+                     (bool_t(*)(XDR *, void *)) xdr_wire_sbd_register) < 0) {
         LL_ERR("sbd on host=%s registration failed", host);
         return -1;
     }
@@ -341,7 +341,7 @@ void sbd_register_ack(XDR *xdrs)
 }
 
 int sbd_send_msg(int32_t op, int32_t status, void *payload, size_t siz,
-                 bool_t (*xdr_func)())
+                 bool_t (*xdr_func)(XDR *, void *))
 {
     struct protocol_header hdr;
 

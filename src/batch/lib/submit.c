@@ -240,8 +240,9 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (u_int) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg2(&xdrs, &hdr, &w, (bool_t(*)()) xdr_wire_job_submit,
-                        &script, (bool_t(*)()) xdr_wire_job_script)) {
+    if (!ll_encode_msg2(&xdrs, &hdr, &w,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_submit, &script,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_script)) {
         xdr_destroy(&xdrs);
         free(buf);
         free(script.data);

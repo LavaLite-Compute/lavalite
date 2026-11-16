@@ -336,7 +336,7 @@ int network_init(void);
 int mbd_accept(int);
 void mbd_message(int);
 int enqueue_payload(int, struct protocol_header *, void *, size_t,
-                    bool_t (*xdr_func)());
+                    bool_t (*xdr_func)(XDR *, void *));
 int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
 int valid_batch_op(int);

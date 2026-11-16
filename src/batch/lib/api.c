@@ -270,7 +270,8 @@ int32_t llb_signal_job(int64_t jobid, int32_t array_index, int32_t sig)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_job_sig, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_sig, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -428,7 +429,8 @@ struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &wreq, xdr_wire_job_query, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &wreq,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_query, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -624,7 +626,8 @@ int32_t llb_queue_admin(const char *name, int32_t op)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_queue_admin, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_queue_admin, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -676,7 +679,8 @@ int32_t llb_host_admin(const char *name, int32_t op)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_host_admin, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_host_admin, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -727,7 +731,8 @@ int32_t llb_move_job(int64_t job_id, const char *to_queue)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_job_move, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_move, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -778,7 +783,9 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_job_priority, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_priority,
+                       &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -1032,7 +1039,8 @@ int32_t llb_service_start(const char *name, int32_t run_limit,
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
 
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_start, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_svc_start, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -1139,7 +1147,8 @@ int32_t llb_service_delete(int64_t job_id, const char *host, int32_t port)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_delete, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_svc_delete, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;

@@ -127,7 +127,8 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     size_t siz = PACKET_HEADER_SIZE
         + xdr_sizeof((xdrproc_t)xdr_wire_sbd_register, &reg_ack);
 
-    if (enqueue_payload(chan_id, &hdr, &reg_ack, siz, xdr_wire_sbd_register) < 0) {
+    if (enqueue_payload(chan_id, &hdr, &reg_ack, siz,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_sbd_register) < 0) {
         LL_ERRX("failed enqueue ack sbd register to host=%s", host->net.name);
         xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg_ack);
         mbd_sbd_disconnect(host);
@@ -480,7 +481,7 @@ int mbd_dispatch_job(struct job_data *job)
         + xdr_sizeof((xdrproc_t)xdr_wire_job_start, &ws);
 
     if (enqueue_payload(h->sbd_chan, &hdr, &ws, bufsz,
-                        (bool_t(*)()) xdr_wire_job_start) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_start) < 0) {
         LL_ERRX("job=%ld enqueue_payload failed", job->job_id);
         free(ws.script.data);
         return -1;

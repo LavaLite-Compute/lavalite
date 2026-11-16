@@ -315,7 +315,7 @@ void chan_shutdown(int chan_id)
 }
 
 int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
-                        size_t siz, bool_t (*xdr_func)())
+                        size_t siz, bool_t (*xdr_func)(XDR *, void *))
 {
     struct chan_buffer *buf;
     XDR xdrs;

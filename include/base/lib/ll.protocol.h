@@ -28,7 +28,9 @@ struct protocol_header {
 static const int32_t PACKET_HEADER_SIZE = sizeof(struct protocol_header);
 
 void init_protocol_header(struct protocol_header *);
-bool_t ll_encode_msg(XDR *, void *, bool_t (*)(), struct protocol_header *);
-bool_t ll_encode_msg2(XDR *, struct protocol_header *, void *, bool_t (*)(),
-                      void *, bool_t (*)());
+bool_t ll_encode_msg(XDR *, void *, bool_t (*)(XDR *, void *),
+                     struct protocol_header *);
+bool_t ll_encode_msg2(XDR *, struct protocol_header *, void *,
+                      bool_t (*)(XDR *, void *), void *,
+                      bool_t (*)(XDR *, void *));
 bool_t xdr_pack_hdr(XDR *, struct protocol_header *);

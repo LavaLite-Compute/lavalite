@@ -395,7 +395,8 @@ void service_job_running(struct job_data *job, struct mbd_host *host,
         + xdr_sizeof((xdrproc_t)xdr_wire_svc_instance_info, &info);
 
     if (enqueue_payload(chan_id, &rep_hdr, &info, siz,
-                        xdr_wire_svc_instance_info) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_svc_instance_info) <
+        0) {
         LL_ERR("enqueue_payload failed job=%ld uid=%u", job->job_id,
                inst->uid);
         return;

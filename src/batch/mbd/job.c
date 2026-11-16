@@ -489,7 +489,7 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     }
 
     if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", job->job_id);
         return;
     }
@@ -604,7 +604,8 @@ static int job_register_reply(int chan_id, int64_t job_id)
     size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
-                        xdr_wire_job_submit_reply) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_submit_reply) <
+        0) {
         LL_ERR("enqueue_payload failed job=%ld", job_id);
         return -1;
     }
@@ -626,7 +627,8 @@ static void job_register_error(int chan_id, int status)
     size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
 
     /* Best effort: ignore enqueue failure, caller closes the connection. */
-    enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
+    enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                    (bool_t(*)(XDR *, void *)) xdr_wire_job_submit_reply);
 }
 
 struct job_data * job_prepare(struct wire_job_submit *ws,
@@ -1223,7 +1225,7 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
     }
 
     if (enqueue_payload(host->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", r.job_id);
         return;
     }
@@ -1254,7 +1256,7 @@ static void job_finish_ack(struct mbd_host *n, int64_t job_id)
     }
 
     if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack) < 0) {
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", job_id);
         return;
     }
@@ -2127,7 +2129,8 @@ int signal_running_job(struct job_data *job, const struct wire_job_sig *ws)
     }
 
     if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
-                        LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
+                        LL_BUFSIZ_1K,
+                        (bool_t(*)(XDR *, void *)) xdr_wire_job_sig) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", job->job_id);
         return EAGAIN;
     }
