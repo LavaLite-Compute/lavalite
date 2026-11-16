@@ -110,7 +110,7 @@ static int sbd_init(void)
     int auth_age;
     ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
     if (auth_init(1, auth_age) < 0) {
-        LL_ERRX("auth_load_key failed");
+        LL_ERR("auth_init failed, daemon key ll.daemon.key");
         return -1;
     }
 

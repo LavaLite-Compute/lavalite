@@ -244,7 +244,7 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     }
     size_t encoded = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, encoded) < 0) {
+    if (auth_sign_msg(buf, encoded, AUTH_KEY_CLIENT) < 0) {
         free(script.data);
         free(buf);
         errno = EPROTO;

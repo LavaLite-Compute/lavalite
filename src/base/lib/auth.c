@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <sys/random.h>
 #include <openssl/crypto.h>
 #include <openssl/hmac.h>
@@ -15,12 +16,25 @@
 #include "base/lib/ll.protocol.h"
 #include "base/lib/auth.h"
 
-static uint8_t auth_key[AUTH_KEY_SIZE];
-static int auth_key_loaded = 0;
+/* the two keys, see auth.h: index AUTH_KEY_CLIENT or AUTH_KEY_DAEMON */
+static uint8_t auth_key[2][AUTH_KEY_SIZE];
+static int auth_key_loaded[2];
 static int auth_required = 1;
 static uint32_t auth_allowed_age = AUTH_MAX_AGE;
 
-static const char *key_path(void)
+static const char *key_file[2] = {"ll.auth.key", "ll.daemon.key"};
+static const mode_t key_mode[2] = {0640, 0600};
+
+static int key_ok(int key)
+{
+    if (key != AUTH_KEY_CLIENT && key != AUTH_KEY_DAEMON) {
+        errno = EINVAL;
+        return 0;
+    }
+    return 1;
+}
+
+static const char *key_path(int key)
 {
     const char *dir = getenv("LL_CONF_DIR");
     if (dir == NULL) {
@@ -29,13 +43,18 @@ static const char *key_path(void)
     }
 
     static char path[512];
-    snprintf(path, sizeof(path), "%s/ll.auth.key", dir);
+    snprintf(path, sizeof(path), "%s/%s", dir, key_file[key]);
     return path;
 }
 
+/*
+ * auth_init - daemons only: load the daemon key, the one every
+ * mbd <-> sbd message is signed with. mbd loads the client key too,
+ * with auth_load_key(AUTH_KEY_CLIENT), to verify client requests.
+ */
 int auth_init(uint8_t required, uint32_t allowed_age)
 {
-    if (auth_load_key() < 0)
+    if (auth_load_key(AUTH_KEY_DAEMON) < 0)
         return -1;
 
     auth_required = 1;
@@ -53,12 +72,15 @@ void auth_set_required(int required)
     auth_required = required;
 }
 
-int auth_load_key(void)
+int auth_load_key(int key)
 {
-    if (auth_key_loaded)
+    if (!key_ok(key))
+        return -1;
+
+    if (auth_key_loaded[key])
         return 0;
 
-    const char *path = key_path();
+    const char *path = key_path(key);
     if (path == NULL)
         return -1;
 
@@ -66,7 +88,7 @@ int auth_load_key(void)
     if (fd < 0)
         return -1;
 
-    ssize_t n = read(fd, auth_key, AUTH_KEY_SIZE);
+    ssize_t n = read(fd, auth_key[key], AUTH_KEY_SIZE);
     close(fd);
 
     if (n != AUTH_KEY_SIZE) {
@@ -74,30 +96,33 @@ int auth_load_key(void)
         return -1;
     }
 
-    auth_key_loaded = 1;
+    auth_key_loaded[key] = 1;
     return 0;
 }
 
-int auth_generate_key(void)
+int auth_generate_key(int key)
 {
-    const char *path = key_path();
+    if (!key_ok(key))
+        return -1;
+
+    const char *path = key_path(key);
     if (path == NULL)
         return -1;
 
-    uint8_t key[AUTH_KEY_SIZE];
-    if (getrandom(key, sizeof(key), 0) != AUTH_KEY_SIZE) {
+    uint8_t buf[AUTH_KEY_SIZE];
+    if (getrandom(buf, sizeof(buf), 0) != AUTH_KEY_SIZE) {
         errno = EIO;
         return -1;
     }
 
-    int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0640);
+    int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, key_mode[key]);
     if (fd < 0) {
         if (errno == EEXIST)
             return 0;
         return -1;
     }
 
-    ssize_t n = write(fd, key, AUTH_KEY_SIZE);
+    ssize_t n = write(fd, buf, AUTH_KEY_SIZE);
     close(fd);
 
     if (n != AUTH_KEY_SIZE) {
@@ -153,11 +178,12 @@ static int put_hdr(char *buf, struct protocol_header *hdr)
     return 0;
 }
 
-static int compute_hmac(const char *buf, size_t len, uint8_t out[AUTH_KEY_SIZE])
+static int compute_hmac(int key, const char *buf, size_t len,
+                        uint8_t out[AUTH_KEY_SIZE])
 {
     unsigned int n = 0;
 
-    uint8_t *digest = HMAC(EVP_sha256(), auth_key, AUTH_KEY_SIZE,
+    uint8_t *digest = HMAC(EVP_sha256(), auth_key[key], AUTH_KEY_SIZE,
                            (const unsigned char *) buf, len, NULL, &n);
     if (digest == NULL || n != AUTH_KEY_SIZE) {
         errno = EPROTO;
@@ -173,11 +199,12 @@ static int compute_hmac(const char *buf, size_t len, uint8_t out[AUTH_KEY_SIZE])
  *
  * buf holds the whole message, len bytes: header then payload. The
  * caller's uid, gid and a timestamp are written into the header, then
- * the HMAC over the whole buffer.
+ * the HMAC over the whole buffer, with key AUTH_KEY_CLIENT or
+ * AUTH_KEY_DAEMON.
  */
-int auth_sign_msg(char *buf, size_t len)
+int auth_sign_msg(char *buf, size_t len, int key)
 {
-    if (auth_load_key() < 0)
+    if (auth_load_key(key) < 0)
         return -1;
 
     struct protocol_header hdr;
@@ -191,7 +218,7 @@ int auth_sign_msg(char *buf, size_t len)
     if (put_hdr(buf, &hdr) < 0)
         return -1;
 
-    if (compute_hmac(buf, len, hdr.hmac) < 0)
+    if (compute_hmac(key, buf, len, hdr.hmac) < 0)
         return -1;
 
     if (put_hdr(buf, &hdr) < 0)
@@ -205,14 +232,15 @@ int auth_sign_msg(char *buf, size_t len)
  *
  * buf holds the whole message as received, len bytes. The hmac field
  * in buf is zeroed in place to recompute the HMAC; the rest of the
- * buffer is left as it was.
+ * buffer is left as it was. key is the one the receiver expects for
+ * this message: a message signed with the other key fails.
  */
-int auth_verify_msg(char *buf, size_t len)
+int auth_verify_msg(char *buf, size_t len, int key)
 {
     if (!auth_required)
         return 0;
 
-    if (auth_load_key() < 0)
+    if (auth_load_key(key) < 0)
         return -1;
 
     struct protocol_header hdr;
@@ -226,7 +254,7 @@ int auth_verify_msg(char *buf, size_t len)
         return -1;
 
     uint8_t expected[AUTH_KEY_SIZE];
-    if (compute_hmac(buf, len, expected) < 0)
+    if (compute_hmac(key, buf, len, expected) < 0)
         return -1;
 
     if (CRYPTO_memcmp(expected, got, AUTH_KEY_SIZE) != 0) {

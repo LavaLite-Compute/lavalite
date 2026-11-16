@@ -31,6 +31,7 @@ FAIL=0
 mkdir -p $CONF $QA/state $QA/log
 cp "$(dirname "$0")/../../../etc/ll.auth.key" $CONF/ 2>/dev/null ||
     echo "simqa-test-key-0123456789abcdef" > $CONF/ll.auth.key
+echo "simqa-daemon-key-0123456789abcd" > $CONF/ll.daemon.key
 
 # ---------------------------------------------------------------- config
 

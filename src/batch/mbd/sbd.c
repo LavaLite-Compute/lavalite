@@ -171,7 +171,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         return -1;
     }
 
-    if (auth_verify_msg(buf->data, buf->len) < 0) {
+    if (auth_verify_msg(buf->data, buf->len, AUTH_KEY_DAEMON) < 0) {
         LL_ERR("failed validate message opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);

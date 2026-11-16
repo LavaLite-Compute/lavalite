@@ -13,18 +13,25 @@
  * before dispatching to any handler.
  * Responses from mbd to clients are not signed.
  *
- * Key file: $LL_CONF_DIR/auth.key
- *   32 raw random bytes, mode 0640, group server uid.
+ * Two keys, 32 bytes each, in $LL_CONF_DIR:
+ *   ll.auth.key    client key: client requests to mbd.
+ *                  root:lavalite 0640
+ *   ll.daemon.key  daemon key: every mbd <-> sbd message.
+ *                  lavalite:lavalite 0600, the mbd user and root only,
+ *                  only on hosts running mbd or sbd.
  *
- * Replay protection: server rejects headers older than AUTH_MAX_AGE seconds.
+ * Replay protection: messages older than AUTH_MAX_AGE seconds are
+ * rejected.
  */
 
 #define AUTH_KEY_SIZE 32
 #define AUTH_MAX_AGE 60
 
+enum auth_key { AUTH_KEY_CLIENT = 0, AUTH_KEY_DAEMON = 1 };
+
 int auth_init(uint8_t, uint32_t);
 void auth_set_required(int);
-int auth_load_key(void);
-int auth_generate_key(void);
-int auth_sign_msg(char *, size_t);
-int auth_verify_msg(char *, size_t);
+int auth_load_key(int);
+int auth_generate_key(int);
+int auth_sign_msg(char *, size_t, int);
+int auth_verify_msg(char *, size_t, int);

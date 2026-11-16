@@ -44,7 +44,7 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     xdr_destroy(&xdrs);
 
     /* mbd verifies every message from sbd */
-    if (auth_sign_msg(buf->data, buf->len) < 0) {
+    if (auth_sign_msg(buf->data, buf->len, AUTH_KEY_DAEMON) < 0) {
         LL_ERR("auth_sign_msg failed op=%d", hdr->operation);
         chan_free_buf(buf);
         return -1;
@@ -246,7 +246,7 @@ int sbd_mbd_route(int chan_id)
         return -1;
     }
 
-    if (auth_verify_msg(buf->data, buf->len) < 0) {
+    if (auth_verify_msg(buf->data, buf->len, AUTH_KEY_DAEMON) < 0) {
         LL_ERR("failed validate message opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);

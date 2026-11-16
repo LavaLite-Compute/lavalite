@@ -58,7 +58,7 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         return NULL;
     }
 
@@ -184,7 +184,7 @@ struct host_group *llb_group_info(int32_t *ngroups)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         return NULL;
     }
 
@@ -272,7 +272,7 @@ int32_t llb_signal_job(int64_t jobid, int32_t array_index, int32_t sig)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }
@@ -314,7 +314,7 @@ struct host_info *llb_host_info(int32_t *nhosts)
 
     size_t req_len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(reqbuf, req_len) < 0) {
+    if (auth_sign_msg(reqbuf, req_len, AUTH_KEY_CLIENT) < 0) {
         return NULL;
     }
 
@@ -428,7 +428,7 @@ struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         errno = EPROTO;
         return NULL;
@@ -538,7 +538,7 @@ struct token_pool_info *llb_token_info(int32_t *ntokens)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         return NULL;
     }
 
@@ -624,7 +624,7 @@ int32_t llb_queue_admin(const char *name, int32_t op)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }
@@ -676,7 +676,7 @@ int32_t llb_host_admin(const char *name, int32_t op)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }
@@ -727,7 +727,7 @@ int32_t llb_move_job(int64_t job_id, const char *to_queue)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }
@@ -779,7 +779,7 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }
@@ -828,7 +828,7 @@ struct svc_info *llb_service_info(int32_t *nsvc)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         return NULL;
     }
 
@@ -1032,7 +1032,7 @@ int32_t llb_service_start(const char *name, int32_t run_limit,
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }
@@ -1139,7 +1139,7 @@ int32_t llb_service_delete(int64_t job_id, const char *host, int32_t port)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-    if (auth_sign_msg(buf, len) < 0) {
+    if (auth_sign_msg(buf, len, AUTH_KEY_CLIENT) < 0) {
         free(buf);
         return -1;
     }

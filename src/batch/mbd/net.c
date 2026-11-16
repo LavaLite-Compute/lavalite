@@ -101,7 +101,13 @@ static void route(int chan_id)
         return;
     }
 
-    if (auth_verify_msg(buf->data, buf->len) < 0) {
+    /* sbd registers on the client port, with the daemon key; every
+     * other request on this port is a client's */
+    int key = AUTH_KEY_CLIENT;
+    if (hdr.operation == BATCH_SBD_REGISTER)
+        key = AUTH_KEY_DAEMON;
+
+    if (auth_verify_msg(buf->data, buf->len, key) < 0) {
         LL_ERR("failed validate message opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
@@ -339,7 +345,7 @@ static int32_t enqueue_msg(int chan_id, struct protocol_header *hdr,
     buf->len = (size_t) xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
-    if (sign && auth_sign_msg(buf->data, buf->len) < 0) {
+    if (sign && auth_sign_msg(buf->data, buf->len, AUTH_KEY_DAEMON) < 0) {
         LL_ERR("auth_sign_msg failed op=%d", hdr->operation);
         chan_free_buf(buf);
         return -1;

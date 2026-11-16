@@ -90,7 +90,11 @@ static int mbd_init(void)
         auth_age = 60;
     }
     if (auth_init(1, auth_age) < 0) {
-        LL_ERRX("auth_init failed");
+        LL_ERR("auth_init failed, daemon key ll.daemon.key");
+        return -1;
+    }
+    if (auth_load_key(AUTH_KEY_CLIENT) < 0) {
+        LL_ERR("auth_load_key failed, client key ll.auth.key");
         return -1;
     }
 
