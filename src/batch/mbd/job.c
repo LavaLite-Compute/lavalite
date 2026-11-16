@@ -482,14 +482,8 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
-               h->net.name);
-        return;
-    }
-
-    if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
+    if (enqueue_signed(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", job->job_id);
         return;
     }
@@ -1235,14 +1229,8 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
     rep_hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
     rep_hdr.status = MBD_OK;
 
-    if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
-               host->net.name);
-        return;
-    }
-
-    if (enqueue_payload(host->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
-                        (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
+    if (enqueue_signed(host->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", r.job_id);
         return;
     }
@@ -1266,14 +1254,8 @@ static void job_finish_ack(struct mbd_host *n, int64_t job_id)
     hdr.operation = BATCH_JOB_FINISH_ACK;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job_id,
-               n->net.name);
-        return;
-    }
-
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
+    if (enqueue_signed(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", job_id);
         return;
     }
@@ -2139,15 +2121,9 @@ int signal_running_job(struct job_data *job, const struct wire_job_sig *ws)
     hdr.operation = BATCH_SBD_JOB_SIGNAL;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
-               job->run_hosts[0]->net.name);
-        return EAGAIN;
-    }
-
-    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
-                        LL_BUFSIZ_1K,
-                        (bool_t(*)(XDR *, void *)) xdr_wire_job_sig) < 0) {
+    if (enqueue_signed(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
+                       LL_BUFSIZ_1K,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_sig) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", job->job_id);
         return EAGAIN;
     }

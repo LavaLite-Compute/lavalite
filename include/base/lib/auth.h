@@ -8,9 +8,10 @@
 /*
  * auth - HMAC-SHA256 authentication for the lavalite protocol.
  *
- * Client signs the outgoing protocol_header before sending.
- * server verifies the header before dispatching to any handler.
- * Responses from server to client are not signed.
+ * The sender signs the whole encoded message, header and payload,
+ * after encoding it. The receiver verifies the message as received,
+ * before dispatching to any handler.
+ * Responses from mbd to clients are not signed.
  *
  * Key file: $LL_CONF_DIR/auth.key
  *   32 raw random bytes, mode 0640, group server uid.
@@ -25,5 +26,5 @@ int auth_init(uint8_t, uint32_t);
 void auth_set_required(int);
 int auth_load_key(void);
 int auth_generate_key(void);
-int auth_sign_header(struct protocol_header *);
-int auth_verify_header(const struct protocol_header *);
+int auth_sign_msg(char *, size_t);
+int auth_verify_msg(char *, size_t);

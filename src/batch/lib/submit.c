@@ -231,13 +231,6 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     hdr.operation = BATCH_JOB_SUBMIT;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(script.data);
-        free(buf);
-        errno = EPROTO;
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (u_int) bufsz, XDR_ENCODE);
     if (!ll_encode_msg2(&xdrs, &hdr, &w,
@@ -251,6 +244,12 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     }
     size_t encoded = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, encoded) < 0) {
+        free(script.data);
+        free(buf);
+        errno = EPROTO;
+        return -1;
+    }
     free(script.data);
     void *rbuf = NULL;
     struct protocol_header rhdr;

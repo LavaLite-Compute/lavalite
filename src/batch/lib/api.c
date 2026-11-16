@@ -51,10 +51,6 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_QUEUE_INFO;
 
-    if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
     if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
@@ -62,6 +58,9 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        return NULL;
+    }
 
     /* -------------------------
      * RPC
@@ -178,10 +177,6 @@ struct host_group *llb_group_info(int32_t *ngroups)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_GROUP_INFO;
 
-    if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
     if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
@@ -189,6 +184,9 @@ struct host_group *llb_group_info(int32_t *ngroups)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        return NULL;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -263,11 +261,6 @@ int32_t llb_signal_job(int64_t jobid, int32_t array_index, int32_t sig)
     hdr.operation = BATCH_JOB_SIGNAL;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *) &req,
@@ -279,6 +272,10 @@ int32_t llb_signal_job(int64_t jobid, int32_t array_index, int32_t sig)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -310,10 +307,6 @@ struct host_info *llb_host_info(int32_t *nhosts)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_HOST_INFO;
 
-    if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
     if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
@@ -321,6 +314,9 @@ struct host_info *llb_host_info(int32_t *nhosts)
 
     size_t req_len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(reqbuf, req_len) < 0) {
+        return NULL;
+    }
 
     /* -------------------------
      * RPC
@@ -421,12 +417,6 @@ struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
     wreq.flags = req->flags;
     wreq.uid = req->uid;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        errno = EPROTO;
-        return NULL;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *) &wreq,
@@ -438,6 +428,11 @@ struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        errno = EPROTO;
+        return NULL;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -536,10 +531,6 @@ struct token_pool_info *llb_token_info(int32_t *ntokens)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_TOKEN_INFO;
 
-    if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
     if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
@@ -547,6 +538,9 @@ struct token_pool_info *llb_token_info(int32_t *ntokens)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        return NULL;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -619,11 +613,6 @@ int32_t llb_queue_admin(const char *name, int32_t op)
     hdr.operation = BATCH_QUEUE_ADMIN;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *) &req,
@@ -635,6 +624,10 @@ int32_t llb_queue_admin(const char *name, int32_t op)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -672,11 +665,6 @@ int32_t llb_host_admin(const char *name, int32_t op)
     hdr.operation = BATCH_HOST_ADMIN;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *) &req,
@@ -688,6 +676,10 @@ int32_t llb_host_admin(const char *name, int32_t op)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -724,11 +716,6 @@ int32_t llb_move_job(int64_t job_id, const char *to_queue)
     hdr.operation = BATCH_JOB_MOVE;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *) &req,
@@ -740,6 +727,10 @@ int32_t llb_move_job(int64_t job_id, const char *to_queue)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -776,11 +767,6 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
     hdr.operation = BATCH_JOB_PRIORITY;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *) &req,
@@ -793,6 +779,10 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -830,11 +820,6 @@ struct svc_info *llb_service_info(int32_t *nsvc)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_SERVICE_INFO;
 
-    if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
-
     if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         errno = EPROTO;
@@ -843,6 +828,9 @@ struct svc_info *llb_service_info(int32_t *nsvc)
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        return NULL;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -1031,11 +1019,6 @@ int32_t llb_service_start(const char *name, int32_t run_limit,
     hdr.operation = BATCH_SERVICE_START;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        free(buf);
-        return -1;
-    }
-
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
 
@@ -1049,6 +1032,10 @@ int32_t llb_service_start(const char *name, int32_t run_limit,
 
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;
@@ -1135,10 +1122,6 @@ int32_t llb_service_delete(int64_t job_id, const char *host, int32_t port)
     hdr.operation = BATCH_SERVICE_DELETE;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        return -1;
-    }
-
     size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_svc_delete)
         + LL_BUFSIZ_64;
     char *buf = calloc(bufsz, sizeof(char));
@@ -1156,6 +1139,10 @@ int32_t llb_service_delete(int64_t job_id, const char *host, int32_t port)
     }
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
+    if (auth_sign_msg(buf, len) < 0) {
+        free(buf);
+        return -1;
+    }
 
     void *rep = NULL;
     struct protocol_header rhdr;

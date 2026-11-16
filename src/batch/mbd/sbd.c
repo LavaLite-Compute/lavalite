@@ -117,18 +117,11 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     hdr.operation = BATCH_SBD_REGISTER_ACK;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("auth_sign_header failed");
-        xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg_ack);
-        mbd_sbd_disconnect(host);
-        return -1;
-    }
-
     size_t siz = PACKET_HEADER_SIZE
         + xdr_sizeof((xdrproc_t)xdr_wire_sbd_register, &reg_ack);
 
-    if (enqueue_payload(chan_id, &hdr, &reg_ack, siz,
-                        (bool_t(*)(XDR *, void *)) xdr_wire_sbd_register) < 0) {
+    if (enqueue_signed(chan_id, &hdr, &reg_ack, siz,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_sbd_register) < 0) {
         LL_ERRX("failed enqueue ack sbd register to host=%s", host->net.name);
         xdr_free((xdrproc_t) xdr_wire_sbd_register, &reg_ack);
         mbd_sbd_disconnect(host);
@@ -178,8 +171,8 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         return -1;
     }
 
-    if (auth_verify_header(&hdr) < 0) {
-        LL_ERR("failed validate header opcode=%s from=%s",
+    if (auth_verify_msg(buf->data, buf->len) < 0) {
+        LL_ERR("failed validate message opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
@@ -470,18 +463,12 @@ int mbd_dispatch_job(struct job_data *job)
     hdr.operation = BATCH_NEW_JOB;
     hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERRX("job=%ld auth_sign_header failed", job->job_id);
-        free(ws.script.data);
-        return -1;
-    }
-
     /* buffer size: fixed struct + script payload + XDR overhead */
     size_t bufsz = PACKET_HEADER_SIZE
         + xdr_sizeof((xdrproc_t)xdr_wire_job_start, &ws);
 
-    if (enqueue_payload(h->sbd_chan, &hdr, &ws, bufsz,
-                        (bool_t(*)(XDR *, void *)) xdr_wire_job_start) < 0) {
+    if (enqueue_signed(h->sbd_chan, &hdr, &ws, bufsz,
+                       (bool_t(*)(XDR *, void *)) xdr_wire_job_start) < 0) {
         LL_ERRX("job=%ld enqueue_payload failed", job->job_id);
         free(ws.script.data);
         return -1;
