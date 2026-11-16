@@ -423,6 +423,9 @@ static void usage(void)
                     "  -l               Full detail for all jobs\n"
                     "  -r               Show only jobs currently running\n"
                     "  -p               Show only jobs currently pending\n"
+                    "  -m HOSTS         Show only jobs dispatched to HOSTS,"
+                    " a blank\n"
+                    "                   separated list, may be repeated\n"
                     "  -h, --help       Display this help and exit\n"
                     "  -V, --version    Output version information and exit\n"
                     "\n"
@@ -463,6 +466,87 @@ static int32_t filter_by_state(struct job_hist_info *jobs, int32_t njobs,
     return kept;
 }
 
+/* -m: hosts to filter on, from one or more -m arguments, each a
+ * blank separated list. Not checked against the configuration: a
+ * host removed from llb.hosts is still in the old manifests.
+ */
+static char **mhosts;
+static int nmhosts;
+
+static int add_hosts(const char *arg)
+{
+    char *buf = strdup(arg);
+    if (buf == NULL)
+        return -1;
+
+    char *save;
+    char *tok = strtok_r(buf, " \t", &save);
+    while (tok != NULL) {
+        char **p = realloc(mhosts, (nmhosts + 1) * sizeof(char *));
+        if (p == NULL) {
+            free(buf);
+            return -1;
+        }
+        mhosts = p;
+        mhosts[nmhosts] = strdup(tok);
+        if (mhosts[nmhosts] == NULL) {
+            free(buf);
+            return -1;
+        }
+        nmhosts++;
+        tok = strtok_r(NULL, " \t", &save);
+    }
+
+    free(buf);
+    return 0;
+}
+
+/* a job matches if any of its dispatches, any JOB_START, went to a
+ * host in the -m list; JOB_START run_hosts is "hostA hostB"
+ */
+static int job_on_hosts(const struct job_hist_info *j)
+{
+    for (int32_t e = 0; e < j->num_events; e++) {
+        const struct job_event *ev = &j->events[e];
+
+        if (ev->type != EVENT_JOB_START || ev->run_hosts == NULL)
+            continue;
+
+        char buf[LL_BUFSIZ_4K];
+        snprintf(buf, sizeof(buf), "%s", ev->run_hosts);
+
+        char *save;
+        char *tok = strtok_r(buf, " ", &save);
+        while (tok != NULL) {
+            for (int i = 0; i < nmhosts; i++) {
+                if (strcmp(tok, mhosts[i]) == 0)
+                    return 1;
+            }
+            tok = strtok_r(NULL, " ", &save);
+        }
+    }
+
+    return 0;
+}
+
+/* same compaction as filter_by_state() */
+static int32_t filter_by_hosts(struct job_hist_info *jobs, int32_t njobs)
+{
+    int32_t kept = 0;
+
+    for (int32_t i = 0; i < njobs; i++) {
+        if (!job_on_hosts(&jobs[i])) {
+            llb_free_hist_entry(&jobs[i]);
+            continue;
+        }
+        if (kept != i)
+            jobs[kept] = jobs[i];
+        kept++;
+    }
+
+    return kept;
+}
+
 int main(int argc, char **argv)
 {
     int64_t job_id = 0;
@@ -479,8 +563,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* -l/-r/-p are short-only: no long equivalent */
-    while ((cc = getopt_long(argc, argv, "hVu:lrp", longopts, NULL)) != EOF) {
+    /* -l/-r/-p/-m are short-only: no long equivalent */
+    while ((cc = getopt_long(argc, argv, "hVu:lrpm:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'V':
             printf("%s\n", LAVALITE_VERSION_STR);
@@ -511,6 +595,12 @@ int main(int argc, char **argv)
             break;
         case 'p':
             pending_only = 1;
+            break;
+        case 'm':
+            if (add_hosts(optarg) < 0) {
+                fprintf(stderr, "bhist: %s\n", strerror(errno));
+                return 1;
+            }
             break;
         default:
             usage();
@@ -565,6 +655,15 @@ int main(int argc, char **argv)
 
             free(jobs);
             printf("No %s jobs found.\n", what);
+            return 0;
+        }
+    }
+
+    if (nmhosts > 0) {
+        njobs = filter_by_hosts(jobs, njobs);
+        if (njobs == 0) {
+            free(jobs);
+            printf("No historical jobs found.\n");
             return 0;
         }
     }

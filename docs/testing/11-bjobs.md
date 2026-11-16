@@ -316,6 +316,50 @@ status.
 
 The command fails cleanly and does not crash.
 
+---
+
+## TEST-130: Filter jobs by host with -m
+
+Needs two execution hosts, here `worker1` and `worker2`. `bhist -m`
+is tested here too, its filter is the same idea on the history.
+
+### Commands
+
+```sh
+bsub --machines worker1 sleep 300                      # j1
+bsub --machines worker2 sleep 300                      # j2
+bsub --nhosts 2 sleep 300                              # j3, both hosts
+bjobs -m worker1
+bjobs -m worker2
+bjobs -m "worker1 worker2"
+bjobs -m worker1 -m worker2
+bjobs -m nodeX; echo $?
+bjobs -m worker1 <j1>; echo $?
+bhist -m worker1
+bhist -m nodeX
+```
+
+### Expected Result
+
+- `bjobs -m worker1` shows `j1` and `j3`, `-m worker2` shows `j2`
+  and `j3`.
+- The list and the repeated `-m` both show all three jobs.
+- `bjobs -m nodeX` prints `bjobs: nodeX: unknown host` and exits 1.
+- `-m` with a job ID is refused, exit 1.
+- `bhist -m worker1` shows `j1` and `j3`; `bhist -m nodeX` prints
+  `No historical jobs found.`, no error: `bhist` does not check names.
+
+### Pass Criteria
+
+Only the jobs on the named hosts are shown, a job on several hosts
+matches any of them, and an unknown host is an error for `bjobs`.
+
+### Cleanup
+
+```sh
+bkill --signal kill <j1> <j2> <j3>
+```
+
 ## Completion Criteria
 
 The `bjobs` test set passes when:

@@ -240,6 +240,104 @@ static int parse_job_ref(const char *s, int64_t *job_id, int64_t *array_id,
     return 0;
 }
 
+/* -m: hosts to filter on, from one or more -m arguments, each a
+ * blank separated list
+ */
+static char **mhosts;
+static int nmhosts;
+
+static int add_hosts(const char *arg)
+{
+    char *buf = strdup(arg);
+    if (buf == NULL)
+        return -1;
+
+    char *save;
+    char *tok = strtok_r(buf, " \t", &save);
+    while (tok != NULL) {
+        char **p = realloc(mhosts, (nmhosts + 1) * sizeof(char *));
+        if (p == NULL) {
+            free(buf);
+            return -1;
+        }
+        mhosts = p;
+        mhosts[nmhosts] = strdup(tok);
+        if (mhosts[nmhosts] == NULL) {
+            free(buf);
+            return -1;
+        }
+        nmhosts++;
+        tok = strtok_r(NULL, " \t", &save);
+    }
+
+    free(buf);
+    return 0;
+}
+
+/* every -m host must be a configured host: an unknown name is an
+ * error, not an empty list
+ */
+static int check_hosts(void)
+{
+    int32_t n;
+    struct host_info *hosts = llb_host_info(&n);
+    if (hosts == NULL) {
+        fprintf(stderr, "bjobs: cannot get hosts: %s\n", strerror(errno));
+        return -1;
+    }
+
+    int bad = 0;
+    for (int i = 0; i < nmhosts; i++) {
+        int found = 0;
+        for (int k = 0; k < n; k++) {
+            if (strcmp(mhosts[i], hosts[k].name) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            fprintf(stderr, "bjobs: %s: unknown host\n", mhosts[i]);
+            bad = 1;
+        }
+    }
+
+    llb_free_host_info(hosts, n);
+    if (bad)
+        return -1;
+    return 0;
+}
+
+/* run_hosts is "2@hostA 2@hostB": the job matches if any of its
+ * hosts is in the -m list
+ */
+static int job_on_hosts(const struct job_info *j)
+{
+    if (j->run_hosts == NULL || j->run_hosts[0] == '\0')
+        return 0;
+
+    char buf[4096];
+    strncpy(buf, j->run_hosts, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = 0;
+
+    char *save;
+    char *tok = strtok_r(buf, " ", &save);
+    while (tok != NULL) {
+        char *name = strchr(tok, '@');
+        if (name == NULL)
+            name = tok;
+        else
+            name++;
+
+        for (int i = 0; i < nmhosts; i++) {
+            if (strcmp(name, mhosts[i]) == 0)
+                return 1;
+        }
+        tok = strtok_r(NULL, " ", &save);
+    }
+
+    return 0;
+}
+
 static void usage(void)
 {
     fprintf(stderr,
@@ -253,6 +351,9 @@ static void usage(void)
             "  --pend         Show pending jobs with pending reason\n"
             "  --run          Show running jobs only\n"
             "  --done         Show finished jobs (DONE and EXIT)\n"
+            "  -m HOSTS       Show only jobs on HOSTS, a blank separated"
+            " list,\n"
+            "                 may be repeated\n"
             "  --help         Display this help and exit\n"
             "  --version      Output version information and exit\n"
             "\n"
@@ -278,7 +379,8 @@ int main(int argc, char **argv)
     req.job_id = -1;
     req.uid = getuid();
 
-    while ((cc = getopt_long(argc, argv, "hvaprdu:", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hvaprdu:m:", longopts, NULL)) !=
+           EOF) {
         switch (cc) {
         case 'v':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -308,6 +410,12 @@ int main(int argc, char **argv)
             }
             req.uid = pw->pw_uid;
             break;
+        case 'm':
+            if (add_hosts(optarg) < 0) {
+                fprintf(stderr, "bjobs: %s\n", strerror(errno));
+                return 1;
+            }
+            break;
         default:
             usage();
             return 1;
@@ -315,7 +423,7 @@ int main(int argc, char **argv)
     }
 
     if (optind < argc) {
-        if (flags) {
+        if (flags || nmhosts > 0) {
             fprintf(stderr, "bjobs: job_id is mutually exclusive with"
                             " filter options\n");
             return 1;
@@ -329,6 +437,9 @@ int main(int argc, char **argv)
         }
     }
 
+    if (nmhosts > 0 && check_hosts() < 0)
+        return 1;
+
     req.flags = flags;
     int njobs;
     struct job_info *jobs = llb_job_info(&req, &njobs);
@@ -341,13 +452,40 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    struct col_widths w;
-    compute_widths(jobs, njobs, &w);
-    print_header(&w);
+    /* the -m filter runs here, on the reply: sel is a shallow copy
+     * of the matching entries, their fields stay owned by jobs
+     */
+    struct job_info *sel = jobs;
+    int nsel = njobs;
+    if (nmhosts > 0) {
+        sel = calloc(njobs, sizeof(struct job_info));
+        if (sel == NULL) {
+            fprintf(stderr, "bjobs: %s\n", strerror(errno));
+            llb_free_job_info(jobs, njobs);
+            return 1;
+        }
+        nsel = 0;
+        for (int i = 0; i < njobs; i++) {
+            if (job_on_hosts(&jobs[i])) {
+                sel[nsel] = jobs[i];
+                nsel++;
+            }
+        }
+    }
 
-    for (int i = 0; i < njobs; i++)
-        print_job(&jobs[i], &w, show_reason);
+    if (nsel == 0) {
+        printf("No jobs found.\n");
+    } else {
+        struct col_widths w;
+        compute_widths(sel, nsel, &w);
+        print_header(&w);
 
+        for (int i = 0; i < nsel; i++)
+            print_job(&sel[i], &w, show_reason);
+    }
+
+    if (sel != jobs)
+        free(sel);
     llb_free_job_info(jobs, njobs);
     return 0;
 }

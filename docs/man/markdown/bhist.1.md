@@ -46,6 +46,13 @@ job lifecycle events.
 **-p**
 :   Show only jobs currently pending.
 
+**-m** *hosts*
+:   Show only jobs dispatched to *hosts*, a blank separated list of
+    host names; **-m** may be repeated. A job matches if any of its
+    dispatches included one of the hosts. Names are not checked
+    against the configuration, a host removed from it is still in
+    the history.
+
 **-h**, **--help**
 :   Print usage information and exit.
 
@@ -165,6 +172,10 @@ Display only currently running jobs:
 Display only currently pending jobs:
 
     bhist -p
+
+Display the jobs that ran on worker4:
+
+    bhist -m worker4
 
 # SEE ALSO
 
