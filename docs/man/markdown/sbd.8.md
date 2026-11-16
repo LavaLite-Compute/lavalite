@@ -28,19 +28,19 @@ status reporting.
 
 # OPTIONS
 
-**-c** *dir*, **--confdir** *dir*
+**-c**, **--confdir** *dir*
 :   Set the configuration directory, equivalent to setting the
     **LL_CONF_DIR** environment variable.
 
-**-s** *name*:*port*, **--simulator** *name*:*port*
-:   Run in simulator mode. Register with **mbd** as the host *name*
-    on the given *port*. Used for testing without real execution hosts.
+**-s**, **--simulator** *name*
+:   Run in simulator mode. Register with **mbd** as the host *name*.
+    Used for testing without real execution hosts.
 
-**-o** *N*, **--op_timer** *N*
+**-o**, **--op-timer** *N*
 :   Operation timer interval in seconds. Controls the main maintenance
     loop frequency. Default is 1.
 
-**-r** *N*, **--resend_timer** *N*
+**-r**, **--resend-timer** *N*
 :   Resend ACK timeout in seconds. How long to wait before resending
     an unacknowledged message to **mbd**. Default is 1.
 

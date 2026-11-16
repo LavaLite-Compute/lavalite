@@ -340,33 +340,38 @@ static int job_on_hosts(const struct job_info *j)
 
 static void usage(void)
 {
-    fprintf(stderr,
-            "Usage: bjobs [options] [job_id]\n"
-            "\n"
-            "Display jobs. Without options, shows active jobs for the"
-            " current user.\n"
-            "\n"
-            "Options:\n"
-            "  --all          Show jobs in every state, finished included\n"
-            "  --pend         Show pending jobs with pending reason\n"
-            "  --run          Show running jobs only\n"
-            "  --done         Show finished jobs (DONE and EXIT)\n"
-            "  -m HOSTS       Show only jobs on HOSTS, a blank separated"
-            " list,\n"
-            "                 may be repeated\n"
-            "  --help         Display this help and exit\n"
-            "  --version      Output version information and exit\n"
-            "\n"
-            "Arguments:\n"
-            "  job_id         Show a specific job; mutually exclusive with"
-            " filter options\n");
+    fprintf(
+        stderr,
+        "Usage: bjobs [options] [job_id]\n"
+        "\n"
+        "Display jobs. Without options, shows active jobs for the current "
+        "user.\n"
+        "\n"
+        "Options:\n"
+        "  -a, --all                Jobs in every state, finished included\n"
+        "  -p, --pend               Pending jobs with pending reason\n"
+        "  -r, --run                Running jobs only\n"
+        "  -d, --done               Finished jobs (DONE and EXIT)\n"
+        "  -u, --user USER          Jobs of USER\n"
+        "  -m, --machines HOSTS     Jobs on HOSTS, a blank separated list,\n"
+        "                           may be repeated\n"
+        "  -h, --help               Display this help and exit\n"
+        "  -V, --version            Output version information and exit\n"
+        "\n"
+        "Arguments:\n"
+        "  job_id                   A specific job; mutually exclusive with\n"
+        "                           filter options\n");
 }
 
-static struct option longopts[] = {
-    {"help", no_argument, NULL, 'h'},       {"version", no_argument, NULL, 'v'},
-    {"all", no_argument, NULL, 'a'},        {"pend", no_argument, NULL, 'p'},
-    {"run", no_argument, NULL, 'r'},        {"done", no_argument, NULL, 'd'},
-    {"user", required_argument, NULL, 'u'}, {NULL, 0, NULL, 0}};
+static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
+                                   {"version", no_argument, NULL, 'V'},
+                                   {"all", no_argument, NULL, 'a'},
+                                   {"pend", no_argument, NULL, 'p'},
+                                   {"run", no_argument, NULL, 'r'},
+                                   {"done", no_argument, NULL, 'd'},
+                                   {"user", required_argument, NULL, 'u'},
+                                   {"machines", required_argument, NULL, 'm'},
+                                   {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
@@ -379,10 +384,10 @@ int main(int argc, char **argv)
     req.job_id = -1;
     req.uid = getuid();
 
-    while ((cc = getopt_long(argc, argv, "hvaprdu:m:", longopts, NULL)) !=
+    while ((cc = getopt_long(argc, argv, "hVaprdu:m:", longopts, NULL)) !=
            EOF) {
         switch (cc) {
-        case 'v':
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

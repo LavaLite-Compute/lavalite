@@ -40,15 +40,15 @@ The priority change is logged and visible in **bhist**(1).
 
 # OPTIONS
 
-**--priority** *N*, **-p** *N*
+**-p**, **--priority** *N*
 :   New priority value. Must be a non-negative integer. For non-admin
     users, the value cannot exceed the priority of the job's current
     queue.
 
-**--help**, **-h**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**, **-V**
+**-V**, **--version**
 :   Print version to stdout and exit.
 
 # OUTPUT

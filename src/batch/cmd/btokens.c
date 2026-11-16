@@ -51,20 +51,26 @@ static void compute_widths(struct token_pool_info *t, int32_t n,
 
 static void usage(void)
 {
-    fprintf(stderr, "btokens: --help display this help and exit\n"
-                    "--version output version information and exit\n");
+    fprintf(stderr,
+            "Usage: btokens [options]\n"
+            "\n"
+            "Display token pools.\n"
+            "\n"
+            "Options:\n"
+            "  -h, --help               Display this help and exit\n"
+            "  -V, --version            Output version information and exit\n");
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'v'},
+                                   {"version", no_argument, NULL, 'V'},
                                    {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
     int cc;
-    while ((cc = getopt_long(argc, argv, "hv", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
         switch (cc) {
-        case 'v':
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

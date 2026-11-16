@@ -26,10 +26,10 @@ Token pools are defined in llb.hosts. Jobs request tokens with
 
 # OPTIONS
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT

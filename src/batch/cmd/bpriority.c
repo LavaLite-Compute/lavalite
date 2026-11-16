@@ -14,20 +14,21 @@
 
 static void usage(FILE *f)
 {
-    fprintf(f, "Usage: bpriority --priority N job_id\n"
-               "\n"
-               "Change the priority of a pending or held job.\n"
-               "Priority cannot exceed the queue priority unless admin.\n"
-               "\n"
-               "Options:\n"
-               "  -p, --priority N   New priority value\n"
-               "  -h, --help         Display this help and exit\n"
-               "  -v, --version      Output version information and exit\n");
+    fprintf(f,
+            "Usage: bpriority [options] job_id\n"
+            "\n"
+            "Change the priority of a pending or held job.\n"
+            "Priority cannot exceed the queue priority unless admin.\n"
+            "\n"
+            "Options:\n"
+            "  -p, --priority N         New priority value\n"
+            "  -h, --help               Display this help and exit\n"
+            "  -V, --version            Output version information and exit\n");
 }
 
 static struct option longopts[] = {{"priority", required_argument, NULL, 'p'},
                                    {"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'v'},
+                                   {"version", no_argument, NULL, 'V'},
                                    {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
     int priority_set = 0;
     int c;
 
-    while ((c = getopt_long(argc, argv, "p:hv", longopts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "p:hV", longopts, NULL)) != -1) {
         switch (c) {
         case 'p': {
             char *end;
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'v':
+        case 'V':
             printf("%s\n", LAVALITE_VERSION_STR);
             return 0;
         default:

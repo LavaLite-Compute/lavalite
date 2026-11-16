@@ -24,29 +24,32 @@ users.
 
 # OPTIONS
 
-**--all**
+**-a**, **--all**
 :   Show jobs in every state, finished ones included.
 
-**--pend**
+**-p**, **--pend**
 :   Show pending jobs with the pending reason for each job.
 
-**--run**
+**-r**, **--run**
 :   Show running jobs only.
 
-**--done**
+**-d**, **--done**
 :   Show finished jobs (DONE and EXIT states).
 
-**-m** *hosts*
+**-u**, **--user** *user*
+:   Show the jobs of *user* instead of your own.
+
+**-m**, **--machines** *hosts*
 :   Show only jobs running on *hosts*, a blank separated list of
     host names; **-m** may be repeated. A job on several hosts is
     shown if any of them is in the list. Every name must be a host
     in the configuration, an unknown host is an error. The filter is
     applied by **bjobs** to the jobs selected by the other options.
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version to stderr and exit.
 
 # ARGUMENTS

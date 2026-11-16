@@ -75,7 +75,7 @@ filing a test failure.
   failure. A batch job requeued by an infrastructure failure keeps
   counting too.
 
-- **Precision is one scheduler tick** (`--sched_timer`, default 2s).
+- **Precision is one scheduler tick** (`--sched-timer`, default 2s).
   Then one minute of grace between SIGTERM and SIGKILL.
 
 - **Out of time while pending** means `EXIT` without dispatch. The

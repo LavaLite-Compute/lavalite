@@ -36,18 +36,18 @@ The **--close** and **--open** options require administrator privileges.
     priority, status, job limit, users, hosts, job counts, and resource
     usage. User and host lists are wrapped at 79 columns.
 
-**--close** *queue*
+**-c**, **--close** *queue*
 :   Close the named queue. A closed queue still accepts new jobs but
     does not dispatch them: they stay pending with reason queue closed.
     Running jobs are not affected.
 
-**--open** *queue*
+**-o**, **--open** *queue*
 :   Open a previously closed queue, restoring normal operation.
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT

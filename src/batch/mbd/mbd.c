@@ -140,18 +140,18 @@ static void usage(void)
 {
     printf("Usage: mbd [options]\n"
            "\n"
-           "  --confdir dir      Override LL_CONF_DIR (config directory)\n"
-           "  --sched_timer n    Scheduler run interval, in seconds\n"
-           "\n"
-           "  --help             Print this message and exit\n"
-           "  --version          Print version and exit\n");
+           "Options:\n"
+           "  -c, --confdir DIR        Override LL_CONF_DIR\n"
+           "  -t, --sched-timer N      Scheduler run interval, in seconds\n"
+           "  -h, --help               Display this help and exit\n"
+           "  -V, --version            Output version information and exit\n");
 }
 
 static struct option longopts[] = {
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'V'},
     {"confdir", required_argument, NULL, 'c'},
-    {"sched_timer", required_argument, NULL, 't'},
+    {"sched-timer", required_argument, NULL, 't'},
     {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)

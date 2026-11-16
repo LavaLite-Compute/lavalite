@@ -30,14 +30,14 @@ signal any user's jobs this way.
 
 # OPTIONS
 
-**-s** *signal*, **--signal** *signal*
+**-s**, **--signal** *signal*
 :   Signal to send. Symbolic names (case-insensitive) or a numeric
     signal value are accepted.
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version to stderr and exit.
 
 # SIGNALS

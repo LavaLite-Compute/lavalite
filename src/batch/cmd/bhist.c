@@ -412,30 +412,35 @@ static int parse_job_ref(const char *s, int64_t *job_id, int64_t *array_id,
 
 static void usage(void)
 {
-    fprintf(stderr, "Usage: bhist [options] [job_id]\n"
-                    "\n"
-                    "Display job history. Without arguments, shows compact"
-                    " summary for the current user.\n"
-                    "\n"
-                    "Options:\n"
-                    "  -u, --user USER  Show jobs for USER (admin only,"
-                    " unless USER is yourself)\n"
-                    "  -l               Full detail for all jobs\n"
-                    "  -r               Show only jobs currently running\n"
-                    "  -p               Show only jobs currently pending\n"
-                    "  -m HOSTS         Show only jobs dispatched to HOSTS,"
-                    " a blank\n"
-                    "                   separated list, may be repeated\n"
-                    "  -h, --help       Display this help and exit\n"
-                    "  -V, --version    Output version information and exit\n"
-                    "\n"
-                    "Arguments:\n"
-                    "  job_id           Full detail for a specific job\n");
+    fprintf(
+        stderr,
+        "Usage: bhist [options] [job_id]\n"
+        "\n"
+        "Display job history. Without arguments, shows a compact summary for\n"
+        "the current user.\n"
+        "\n"
+        "Options:\n"
+        "  -u, --user USER          Jobs of USER (admin only, unless USER is\n"
+        "                           yourself)\n"
+        "  -l, --long               Full detail for all jobs\n"
+        "  -r, --run                Only jobs currently running\n"
+        "  -p, --pend               Only jobs currently pending\n"
+        "  -m, --machines HOSTS     Only jobs dispatched to HOSTS, a blank\n"
+        "                           separated list, may be repeated\n"
+        "  -h, --help               Display this help and exit\n"
+        "  -V, --version            Output version information and exit\n"
+        "\n"
+        "Arguments:\n"
+        "  job_id                   Full detail for a specific job\n");
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
                                    {"version", no_argument, NULL, 'V'},
                                    {"user", required_argument, NULL, 'u'},
+                                   {"long", no_argument, NULL, 'l'},
+                                   {"run", no_argument, NULL, 'r'},
+                                   {"pend", no_argument, NULL, 'p'},
+                                   {"machines", required_argument, NULL, 'm'},
                                    {NULL, 0, NULL, 0}};
 
 /*
@@ -563,7 +568,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* -l/-r/-p/-m are short-only: no long equivalent */
     while ((cc = getopt_long(argc, argv, "hVu:lrpm:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'V':

@@ -255,29 +255,30 @@ static int parse_job_id(const char *s, int64_t *job_id)
 
 static void usage(void)
 {
-    fprintf(stderr,
-            "Usage: bservices [-a] [-l] [NAME...]\n"
-            "       bservices -s NAME [-t [h:]m]\n"
-            "       bservices -d JOB_ID|HOST:PORT\n"
-            "  -a, --all       include finished instances\n"
-            "  -l, --long      one block per service, its definition\n"
-            "  -s, --start     start an instance of service NAME\n"
-            "  -t, --time      run limit, at most the service RUNLIMIT\n"
-            "  -d, --delete    delete a service instance\n"
-            "  -h, --help      display this help and exit\n"
-            "  -v, --version   output version information and exit\n");
+    fprintf(
+        stderr,
+        "Usage: bservices [options] [name ...]\n"
+        "       bservices -s NAME [-t [h:]m]\n"
+        "       bservices -d JOB_ID|HOST:PORT\n"
+        "\n"
+        "Options:\n"
+        "  -a, --all                Include finished instances\n"
+        "  -l, --long               One block per service, its definition\n"
+        "  -s, --start NAME         Start an instance of service NAME\n"
+        "  -t, --time [h:]m         Run limit, at most the service RUNLIMIT\n"
+        "  -d, --delete ID          Delete a service instance\n"
+        "  -h, --help               Display this help and exit\n"
+        "  -V, --version            Output version information and exit\n");
 }
 
-static struct option longopts[] = {
-    {"help", no_argument, NULL, 'h'},
-    {"version", no_argument, NULL, 'v'},
-    {"all", no_argument, NULL, 'a'},
-    {"long", no_argument, NULL, 'l'},
-    {"start", required_argument, NULL, 's'},
-    {"delete", required_argument, NULL, 'd'},
-    {"time", required_argument, NULL, 't'},
-    {NULL, 0, NULL, 0}
-};
+static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
+                                   {"version", no_argument, NULL, 'V'},
+                                   {"all", no_argument, NULL, 'a'},
+                                   {"long", no_argument, NULL, 'l'},
+                                   {"start", required_argument, NULL, 's'},
+                                   {"delete", required_argument, NULL, 'd'},
+                                   {"time", required_argument, NULL, 't'},
+                                   {NULL, 0, NULL, 0}};
 
 static int start_service(const char *name, int32_t run_limit)
 {
@@ -338,8 +339,8 @@ int main(int argc, char **argv)
     int long_fmt = 0;
     int32_t run_limit = 0;
 
-    while ((cc = getopt_long(argc, argv, "hvals:d:t:", longopts, NULL))
-           != EOF) {
+    while ((cc = getopt_long(argc, argv, "hVals:d:t:", longopts, NULL)) !=
+           EOF) {
         switch (cc) {
         case 'l':
             long_fmt = 1;
@@ -360,7 +361,7 @@ int main(int argc, char **argv)
         case 'a':
             all = 1;
             break;
-        case 'v':
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

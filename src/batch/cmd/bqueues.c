@@ -167,16 +167,21 @@ static int select_queues(struct queue_info *q, int n, char **names,
 
 static void usage(void)
 {
-    fprintf(stderr, "bqueues: [-l] [QUEUE...]\n"
-                    "  --help         display this help and exit\n"
-                    "  -l, --long     display detailed queue information\n"
-                    "  -c, --close    QUEUE close a queue\n"
-                    "  -o, --open     QUEUE open a queue\n"
-                    "  --version      output version information and exit\n");
+    fprintf(stderr,
+            "Usage: bqueues [options] [queue ...]\n"
+            "\n"
+            "Display queues.\n"
+            "\n"
+            "Options:\n"
+            "  -l, --long               Detailed queue information\n"
+            "  -c, --close QUEUE        Close a queue (admin)\n"
+            "  -o, --open QUEUE         Open a queue (admin)\n"
+            "  -h, --help               Display this help and exit\n"
+            "  -V, --version            Output version information and exit\n");
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'v'},
+                                   {"version", no_argument, NULL, 'V'},
                                    {"close", required_argument, NULL, 'c'},
                                    {"open", required_argument, NULL, 'o'},
                                    {"long", no_argument, NULL, 'l'},
@@ -189,7 +194,7 @@ int main(int argc, char **argv)
 
     int cc;
     int long_fmt = 0;
-    while ((cc = getopt_long(argc, argv, "hvlc:o:", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hVlc:o:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             close_queue = optarg;
@@ -197,7 +202,7 @@ int main(int argc, char **argv)
         case 'o':
             open_queue = optarg;
             break;
-        case 'v':
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'l':

@@ -189,16 +189,21 @@ static int select_hosts(struct host_info *h, int n, char **names,
 
 static void usage(void)
 {
-    fprintf(stderr, "bhosts: [-l] [HOST...]\n"
-                    "  --help         display this help and exit\n"
-                    "  -l, --long     per-host detail\n"
-                    "  -c, --close    HOST close a host\n"
-                    "  -o, --open     HOST open a host\n"
-                    "  --version      output version information and exit\n");
+    fprintf(stderr,
+            "Usage: bhosts [options] [host ...]\n"
+            "\n"
+            "Display hosts.\n"
+            "\n"
+            "Options:\n"
+            "  -l, --long               Per-host detail\n"
+            "  -c, --close HOST         Close a host (admin)\n"
+            "  -o, --open HOST          Open a host (admin)\n"
+            "  -h, --help               Display this help and exit\n"
+            "  -V, --version            Output version information and exit\n");
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'v'},
+                                   {"version", no_argument, NULL, 'V'},
                                    {"long", no_argument, NULL, 'l'},
                                    {"close", required_argument, NULL, 'c'},
                                    {"open", required_argument, NULL, 'o'},
@@ -211,7 +216,7 @@ int main(int argc, char **argv)
     const char *open_host = NULL;
     int long_fmt = 0;
 
-    while ((cc = getopt_long(argc, argv, "lc:o:hv", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "lc:o:hV", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'l':
             long_fmt = 1;
@@ -222,7 +227,7 @@ int main(int argc, char **argv)
         case 'o':
             open_host = optarg;
             break;
-        case 'v':
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

@@ -683,8 +683,8 @@ static struct option long_options[] = {
     {"confdir", required_argument, 0, 'c'},
     {"version", no_argument, 0, 'V'},
     {"simulator", required_argument, 0, 's'},
-    {"op_timer", required_argument, 0, 'o'},
-    {"resend_timer", required_argument, 0, 'r'},
+    {"op-timer", required_argument, 0, 'o'},
+    {"resend-timer", required_argument, 0, 'r'},
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}};
 
@@ -692,13 +692,15 @@ static void usage(void)
 {
     fprintf(
         stderr,
-        "sbd: [OPTIONS]\n"
-        " -V, --version           Print version and exit\n"
-        " -c, --confdir dir       Set LL_CONF_DIR\n"
-        " -s, --simulator name    Sim mode: register as sim name\n"
-        " -o, --op_timer N        Operation timer seconds (default: %d)\n"
-        " -r, --resend_timer N    Resend ACK timeout seconds (default: %d)\n"
-        " -h, --help              Show this help\n",
+        "Usage: sbd [options]\n"
+        "\n"
+        "Options:\n"
+        "  -c, --confdir DIR        Override LL_CONF_DIR\n"
+        "  -s, --simulator NAME     Sim mode: register as sim NAME\n"
+        "  -o, --op-timer N         Operation timer seconds (default: %d)\n"
+        "  -r, --resend-timer N     Resend ACK timeout seconds (default: %d)\n"
+        "  -h, --help               Display this help and exit\n"
+        "  -V, --version            Output version information and exit\n",
         SBD_OPERATION_TIMER, SBD_RESEND_ACK_TIMEOUT);
 }
 
@@ -724,13 +726,13 @@ int main(int argc, char **argv)
             break;
         case 'o':
             if (!ll_atoi(optarg, &opt_op_timer) || opt_op_timer < 1) {
-                fprintf(stderr, "sbd: invalid op_timer=%s\n", optarg);
+                fprintf(stderr, "sbd: invalid op-timer=%s\n", optarg);
                 return -1;
             }
             break;
         case 'r':
             if (!ll_atoi(optarg, &opt_resend_timer) || opt_resend_timer < 1) {
-                fprintf(stderr, "sbd: invalid resend_timer=%s\n", optarg);
+                fprintf(stderr, "sbd: invalid resend-timer=%s\n", optarg);
                 return -1;
             }
             break;

@@ -31,13 +31,13 @@ Moving a running job is not supported.
 
 # OPTIONS
 
-**--to** *queue*
+**-t**, **--to** *queue*
 :   Destination queue name. Required.
 
-**--help**, **-h**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**, **-V**
+**-V**, **--version**
 :   Print version to stdout and exit.
 
 # OUTPUT

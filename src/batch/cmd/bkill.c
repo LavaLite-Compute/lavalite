@@ -108,23 +108,30 @@ static int parse_jobid(const char *s, int64_t *job_id, int32_t *array_index)
 
 static void usage(void)
 {
-    fprintf(stderr, "bkill: -s SIGNAL jobid|jobid[idx] [...]\n");
-    fprintf(stderr, " --signal SIGNAL jobid|jobid[idx] [...]\n");
-    fprintf(stderr, "SIGNAL: kill | term | stop | tstp | "
-                    "cont | int | hup | <number>\n");
+    fprintf(
+        stderr,
+        "Usage: bkill [options] job_id|job_id[index] ...\n"
+        "\n"
+        "Send a signal to jobs, SIGTERM by default.\n"
+        "\n"
+        "Options:\n"
+        "  -s, --signal SIGNAL      kill | term | stop | tstp | cont | int |\n"
+        "                           hup | <number>\n"
+        "  -h, --help               Display this help and exit\n"
+        "  -V, --version            Output version information and exit\n");
 }
 
 int main(int argc, char **argv)
 {
     static struct option longopts[] = {{"signal", required_argument, 0, 's'},
                                        {"help", no_argument, 0, 'h'},
-                                       {"version", no_argument, 0, 'v'},
+                                       {"version", no_argument, 0, 'V'},
                                        {0, 0, 0, 0}};
 
     int sig = SIGTERM;
     int cc;
 
-    while ((cc = getopt_long(argc, argv, "s:hv", longopts, NULL)) != -1) {
+    while ((cc = getopt_long(argc, argv, "s:hV", longopts, NULL)) != -1) {
         switch (cc) {
         case 's':
             if (parse_signal(optarg, &sig) < 0) {
@@ -133,7 +140,7 @@ int main(int argc, char **argv)
                 return -1;
             }
             break;
-        case 'v':
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

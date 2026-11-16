@@ -32,85 +32,85 @@ desktop session or display server are not propagated.
 
 ## Job identity
 
-**--queue** *queue*
+**-q**, **--queue** *queue*
 :   Submit the job to the specified queue.
     If omitted, the default queue is used.
 
-**--name** *name*
+**-J**, **--name** *name*
 :   Assign a name to the job. The name need not be unique.
 
-**--project** *name*
+**-P**, **--project** *name*
 :   Associate the job with a project name. Used for accounting.
 
-**--comment** *text*
+**-C**, **--comment** *text*
 :   Arbitrary user-defined string, ignored by the scheduler.
 
 ## Resources
 
-**--cpus** *n*
+**-n**, **--cpus** *n*
 :   Request *n* CPU slots per host. Default is 1.
 
-**--nhosts** *n*
+**-N**, **--nhosts** *n*
 :   Request *n* distinct execution hosts. If combined with **--cpus**,
     the total CPU count is **--cpus** multiplied by **--nhosts**.
     Default is 1.
 
-**--mem** *size*
+**-M**, **--mem** *size*
 :   Request *size* memory per host. Accepts a plain integer (MB) or a
     suffix: K, M, G. Example: **--mem 4G**.
     The limit is enforced via cgroup memory controller on the execution host.
 
-**--storage** *size*
+**-s**, **--storage** *size*
 :   Request *size* local scratch storage per host. Accepts a plain
     integer (MB) or a suffix: K, M, G. Example: **--storage 100G**.
 
-**--gpus** *n*
+**-g**, **--gpus** *n*
 :   Request *n* GPUs per host. Default is 0. With **--nhosts** above 1
     the job gets no **CUDA_VISIBLE_DEVICES**: run it with **--exclusive**
     and all the GPUs of each host, see **llb.hosts**(5).
 
-**--gpu-model** *name*
+**-G**, **--gpu-model** *name*
 :   Require a specific GPU model, as defined in llb.hosts. Example:
     **--gpu-model a100**. If omitted, any GPU model satisfies the request.
     Requires **--gpus**.
 
-**--exclusive**
+**-x**, **--exclusive**
 :   Run the job in exclusive mode. The host is not shared with other
     jobs for the duration of this job.
 
 ## Cluster resources
 
-**--tokens** *name*=*N*
+**-T**, **--tokens** *name*=*N*
 :   Request *N* tokens from the named token pool. This option may be
     repeated to request tokens from multiple pools.
 
 ## Placement
 
-**--machines** "*host* [*host* ...]"
+**-m**, **--machines** "*host* [*host* ...]"
 :   Restrict execution to the listed hosts or host groups.
 
 ## I/O
 
-**--stdout** *path*
+**-o**, **--stdout** *path*
 :   Write standard output to *path*. The string **%J** in the path
     is replaced by the job ID. Default is **stdout.**_jobid_ in the
     working directory.
 
-**--stderr** *path*
+**-e**, **--stderr** *path*
 :   Write standard error to *path*. The string **%J** in the path
     is replaced by the job ID. Default is **stderr.**_jobid_ in the
     working directory.
 
-**--stdin** *path*
+**-i**, **--stdin** *path*
 :   Read standard input from *path*. Default is /dev/null.
 
 ## Scheduling
 
-**--hold**
+**-H**, **--hold**
 :   Hold the job in HELD state after submission. The job will not be
     scheduled until released with **bkill --signal CONT**.
 
-**--array** *start*-*end*[:*stride*]
+**-a**, **--array** *start*-*end*[:*stride*]
 :   Submit an array job: *end* - *start* + 1 (or fewer, with *stride*)
     independent jobs from a single command. *start* must be 1 or
     greater; array elements are numbered from 1. *stride* defaults
@@ -120,21 +120,21 @@ desktop session or display server are not propagated.
     displayed and **bkill**(1) for how to signal an array or a
     single element.
 
-**--begin** [*day*:]*hour*:*minute*
+**-b**, **--begin** [*day*:]*hour*:*minute*
 :   Do not dispatch the job before the specified time.
     Fields are, from right: minute, hour, day.
 
-**--terminate** [*day*:]*hour*:*minute*
+**-t**, **--terminate** [*day*:]*hour*:*minute*
 :   Terminate the job at the specified deadline. The job receives SIGUSR2
     and is killed if it does not exit within one minute.
 
-**--time** [*hours*:]*minutes*
+**-W**, **--time** [*hours*:]*minutes*
 :   Run limit, counted from the moment the job starts executing; time
     spent pending or being dispatched does not count. When the limit is
     reached mbd sends SIGTERM, then SIGKILL one minute later. A job that
     is redispatched keeps counting from its first start.
 
-**--dependency** *expr*
+**-w**, **--dependency** *expr*
 :   Hold the job until *expr* evaluates true. *expr* is built from the
     terms **done(**_id_**)**, **exit(**_id_**)**, and **ended(**_id_**)**,
     where *id* is a job ID. **ended(**_id_**)** is equivalent to
@@ -147,10 +147,10 @@ desktop session or display server are not propagated.
 
 ## Informational
 
-**--help**
+**-h**, **--help**
 :   Print usage to stdout and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version to stdout and exit.
 
 # OUTPUT

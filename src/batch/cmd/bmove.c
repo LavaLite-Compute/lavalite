@@ -14,19 +14,20 @@
 
 static void usage(FILE *f)
 {
-    fprintf(f, "Usage: bmove --to <queue> <job_id>\n"
-               "\n"
-               "Move a pending or held job to a different queue.\n"
-               "\n"
-               "Options:\n"
-               "  --to queue     Destination queue\n"
-               "  -h, --help     Display this help and exit\n"
-               "  -v, --version  Output version information and exit\n");
+    fprintf(f,
+            "Usage: bmove [options] job_id\n"
+            "\n"
+            "Move a pending or held job to a different queue.\n"
+            "\n"
+            "Options:\n"
+            "  -t, --to QUEUE           Destination queue\n"
+            "  -h, --help               Display this help and exit\n"
+            "  -V, --version            Output version information and exit\n");
 }
 
 static struct option longopts[] = {{"to", required_argument, NULL, 't'},
                                    {"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'v'},
+                                   {"version", no_argument, NULL, 'V'},
                                    {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
@@ -34,7 +35,7 @@ int main(int argc, char **argv)
     char *to_queue = NULL;
     int c;
 
-    while ((c = getopt_long(argc, argv, "t:hv", longopts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "t:hV", longopts, NULL)) != -1) {
         switch (c) {
         case 't':
             to_queue = optarg;
@@ -42,7 +43,7 @@ int main(int argc, char **argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'v':
+        case 'V':
             printf("%s\n", LAVALITE_VERSION_STR);
             return 0;
         default:

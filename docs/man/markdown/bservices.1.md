@@ -68,7 +68,7 @@ simultaneously.
 **-h**, **--help**
 :   Print usage to stderr and exit.
 
-**-v**, **--version**
+**-V**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT

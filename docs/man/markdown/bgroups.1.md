@@ -22,10 +22,10 @@ to restrict job placement.
 
 # OPTIONS
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT

@@ -21,7 +21,7 @@ Verify the two time limits and the DISP display:
 - Root access to the execution host for TEST-196.
 
 Run limit timing is checked by `mbd` on every scheduler tick
-(`--sched_timer`, default 2s): allow a few seconds of slack on every
+(`--sched-timer`, default 2s): allow a few seconds of slack on every
 expected time below.
 
 ## TEST-190: Run limit kills a running job

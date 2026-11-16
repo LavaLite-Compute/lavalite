@@ -32,21 +32,21 @@ job lifecycle events.
 
 # OPTIONS
 
-**-u** *user*, **--user** *user*
+**-u**, **--user** *user*
 :   Show jobs belonging to the specified user. Restricted to admins
     unless *user* is the calling user.
 
-**-l**
+**-l**, **--long**
 :   Display additional job information including timestamps,
     execution details, resource usage, and exit status.
 
-**-r**
+**-r**, **--run**
 :   Show only jobs currently running.
 
-**-p**
+**-p**, **--pend**
 :   Show only jobs currently pending.
 
-**-m** *hosts*
+**-m**, **--machines** *hosts*
 :   Show only jobs dispatched to *hosts*, a blank separated list of
     host names; **-m** may be repeated. A job matches if any of its
     dispatches included one of the hosts. Names are not checked

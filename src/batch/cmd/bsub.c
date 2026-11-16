@@ -24,45 +24,46 @@ static void usage(FILE *f)
         "Usage: bsub [options] command [arguments]\n"
         "\n"
         "Job identity:\n"
-        "  --queue  queue     Queue name (default: system default)\n"
-        "  --name   name      Job name\n"
-        "  --project name     Project name\n"
-        "  --comment text     User comment, ignored by scheduler\n"
+        "  -q, --queue QUEUE        Queue name (default: system default)\n"
+        "  -J, --name NAME          Job name\n"
+        "  -P, --project NAME       Project name\n"
+        "  -C, --comment TEXT       User comment, ignored by scheduler\n"
         "\n"
         "Resources (per host):\n"
-        "  --cpus   n         CPU per host (default: 1)\n"
-        "  --nhosts n         number of execution hosts (default: 1)\n"
-        "  --mem    size      Memory per host: n[M|G] (default MB)\n"
-        "  --storage size     Local scratch storage per host: "
-        "n[M|G] (default GB)\n"
-        "  --gpus   n         GPUs per host (default: 0)\n"
-        "  --gpu-model name   Required GPU model (requires --gpus)\n"
-        "  --exclusive        Exclusive host, no job sharing\n"
+        "  -n, --cpus N             CPUs per host (default: 1)\n"
+        "  -N, --nhosts N           Number of execution hosts (default: 1)\n"
+        "  -M, --mem SIZE           Memory per host: n[M|G] (default MB)\n"
+        "  -s, --storage SIZE       Local scratch storage per host: n[M|G]\n"
+        "                           (default GB)\n"
+        "  -g, --gpus N             GPUs per host (default: 0)\n"
+        "  -G, --gpu-model NAME     Required GPU model (requires --gpus)\n"
+        "  -x, --exclusive          Exclusive host, no job sharing\n"
         "\n"
         "Cluster resources:\n"
-        "  --tokens   name=N    Request N tokens from named pool (repeatable)\n"
+        "  -T, --tokens NAME=N      N tokens from the named pool (repeatable)\n"
+        "\n"
         "Placement:\n"
-        "  --machines \"h...\"  Restrict to listed hosts or host groups\n"
+        "  -m, --machines \"h ...\"   Restrict to listed hosts or host groups\n"
         "\n"
         "I/O:\n"
-        "  --stdout path      Standard output (default: stdout.<jobid>)\n"
-        "  --stderr path      Standard error  (default: stderr.<jobid>)\n"
-        "  --stdin  path      Standard input  (default: /dev/null)\n"
+        "  -o, --stdout PATH        Standard output (default: stdout.<jobid>)\n"
+        "  -e, --stderr PATH        Standard error (default: stderr.<jobid>)\n"
+        "  -i, --stdin PATH         Standard input (default: /dev/null)\n"
         "\n"
         "Scheduling:\n"
-        "  --hold             Submit in PSUSP state\n"
-        "  --array  start-end[:stride]  Submit an array job. start must be >= "
-        "1\n"
-        "  --begin  [day:]h:m Do not dispatch before this time\n"
-        "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
-        "  --time  [h:]m      Run limit, counted from job start\n"
-        "  --dependency expr  Hold until dependency expr is satisfied.\n"
-        "                     expr uses done(id)/exit(id)/ended(id) terms\n"
-        "                     combined with && || ! and parentheses.\n"
-        "                     ended(id) means done(id) || exit(id).\n"
+        "  -H, --hold               Submit in HELD state\n"
+        "  -a, --array S-E[:STRIDE] Submit an array job, S must be >= 1\n"
+        "  -b, --begin [day:]h:m    Do not dispatch before this time\n"
+        "  -t, --terminate [d:]h:m  Terminate at deadline (SIGUSR2 + kill)\n"
+        "  -W, --time [h:]m         Run limit, counted from job start\n"
+        "  -w, --dependency EXPR    Hold until EXPR is satisfied. EXPR uses\n"
+        "                           done(id)/exit(id)/ended(id) terms "
+        "combined\n"
+        "                           with && || ! and parentheses; ended(id)\n"
+        "                           means done(id) || exit(id).\n"
         "\n"
-        "  --help             Print this message and exit\n"
-        "  --version          Print version and exit\n");
+        "  -h, --help               Display this help and exit\n"
+        "  -V, --version            Output version information and exit\n");
 }
 
 /*
@@ -245,13 +246,13 @@ int main(int argc, char **argv)
         {"time", required_argument, NULL, 'W'},
         {"dependency", required_argument, NULL, 'w'},
         {"help", no_argument, NULL, 'h'},
-        {"version", no_argument, NULL, 'v'},
+        {"version", no_argument, NULL, 'V'},
         {NULL, 0, NULL, 0}};
 
     int c;
     while ((c = getopt_long(argc, argv,
-                            "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:W:w:hv", opts,
-                            NULL)) != -1) {
+                            "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:W:w:hV",
+                            opts, NULL)) != -1) {
         switch (c) {
         case 'q':
             js.queue = optarg;
@@ -398,7 +399,7 @@ int main(int argc, char **argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'v':
+        case 'V':
             fprintf(stdout, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         default:
