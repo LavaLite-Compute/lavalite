@@ -46,6 +46,10 @@ LavaLite commands, daemons, persistent state, and event replay logic.
   Users load the cluster with `jload` and `sload` while the
   administrator runs `chaos`.
 
+- `21-auth.md`
+  Keys and `llsign`: users cannot read the keys, cannot sign for
+  another uid or as a daemon, daemons need the daemon key.
+
 ### Configuration
 
 - `19-config-changes.md`
