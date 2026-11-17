@@ -31,25 +31,6 @@
 /* largest request, a job submission with its script */
 enum { LLSIGN_MAX = 16 * 1024 * 1024 };
 
-static const int client_ops[] = {
-    BATCH_JOB_SUBMIT,   BATCH_JOB_SIGNAL,     BATCH_JOB_INFO,
-    BATCH_HOST_INFO,    BATCH_QUEUE_INFO,     BATCH_GROUP_INFO,
-    BATCH_TOKEN_INFO,   BATCH_QUEUE_ADMIN,    BATCH_HOST_ADMIN,
-    BATCH_JOB_MOVE,     BATCH_JOB_PRIORITY,   BATCH_SERVICE_START,
-    BATCH_SERVICE_INFO, BATCH_SERVICE_DELETE,
-};
-
-static int client_op(int op)
-{
-    int n = (int) (sizeof(client_ops) / sizeof(client_ops[0]));
-
-    for (int i = 0; i < n; i++) {
-        if (client_ops[i] == op)
-            return 1;
-    }
-    return 0;
-}
-
 /* read stdin to EOF, at most LLSIGN_MAX bytes */
 static char *read_all(size_t *len)
 {
@@ -133,7 +114,7 @@ int main(void)
     }
     xdr_destroy(&xdrs);
 
-    if (!client_op(hdr.operation)) {
+    if (!batch_op_is_client((enum batch_lib_op) hdr.operation)) {
         fprintf(stderr, "llsign: operation %d is not a client request\n",
                 hdr.operation);
         free(buf);

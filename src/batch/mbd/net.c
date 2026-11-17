@@ -101,11 +101,11 @@ static void route(int chan_id)
         return;
     }
 
-    /* sbd registers on the client port, with the daemon key; every
-     * other request on this port is a client's */
-    int key = AUTH_KEY_CLIENT;
-    if (hdr.operation == BATCH_SBD_REGISTER)
-        key = AUTH_KEY_DAEMON;
+    /* client requests with the client key, anything else on this
+     * port, sbd registration, with the daemon key */
+    int key = AUTH_KEY_DAEMON;
+    if (batch_op_is_client((enum batch_lib_op) hdr.operation))
+        key = AUTH_KEY_CLIENT;
 
     if (auth_verify_msg(buf->data, buf->len, key) < 0) {
         LL_ERR("failed validate message opcode=%s from=%s",
