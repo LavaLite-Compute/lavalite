@@ -50,7 +50,8 @@ bsub
 btokens
 bmove
 bpriority
-bservice
+bservices
+llsign
 read_shared
 stdout.*
 stderr.*
