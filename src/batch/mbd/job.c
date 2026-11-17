@@ -1481,8 +1481,9 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
         event_job_resume(job);
     }
 
-    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
-             job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
+    LL_DEBUG("job=%ld queue=%s num_pend=%d num_run=%d num_susp=%d",
+             job->job_id, job->queue->name, job->queue->num_pend,
+             job->queue->num_run, job->queue->num_susp);
 
     LL_INFO("job=%ld signal=%d delivered host=%s", job->job_id, sig.sig,
             n->net.name);
