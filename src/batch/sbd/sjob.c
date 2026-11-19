@@ -506,10 +506,6 @@ static void child_exec_job(struct sbd_job *job)
         _exit(127);
     }
 
-    // write to cgroup till we are root
-    if (cgroup_job_assign(job) < 0)
-        LL_ERR("job=%ld cgroup_assign failed, continuing", job->job_id);
-
     if (job->flags & JOB_FLAG_SERVICE) {
         if (snamespace_enter_job(job) < 0) {
             LL_ERR("job=%ld enter network namespace failed", job->job_id);
@@ -610,7 +606,15 @@ static int spawn_job(struct sbd_job *job)
         _exit(127); /* not reached unless exec fails */
     }
 
-    // parent
+    // parent: before sbd reads its next message, which may be a signal
+    // for this job, the job has its process group and is in its cgroup.
+    // The child does the same setpgid(), whichever runs first wins.
+    setpgid(pid, pid);
+    if (cgroup_job_assign(job, pid) < 0)
+        LL_ERR("job=%ld pid=%d not in its cgroup, signals go to its "
+               "process group",
+               job->job_id, (int) pid);
+
     job->pid = pid;
     job->pgid = pid;
 
@@ -1094,8 +1098,8 @@ void sbd_job_finish_ack(XDR *xdrs)
  * LavaLite-managed job control:
  * STOP/CONT/KILL are implemented through cgroup v2, which reaches
  * every process of the job, also those that left its process group.
- * Without a usable cgroup (v1 host, cgroup init failed) they fall
- * back to the process group, the old school way.
+ * When the job is not in its cgroup (v1 host, cgroup init or assign
+ * failed) they fall back to the process group, the old school way.
  * All other signals are delivered to the job process group.
  */
 int sbd_job_signal(XDR *xdrs)
@@ -1119,12 +1123,16 @@ int sbd_job_signal(XDR *xdrs)
         goto reply;
     }
 
+    /* through the cgroup only if the job is in it: the cgroup of a job
+     * that is not takes the signal, reaches nobody and says ok */
+    int in_cgroup = cgroup_job_has_pid(job);
+
     int rc = -1;
-    if (sig.sig == SIGSTOP)
+    if (in_cgroup && sig.sig == SIGSTOP)
         rc = cgroup_job_freeze(job);
-    if (sig.sig == SIGCONT)
+    if (in_cgroup && sig.sig == SIGCONT)
         rc = cgroup_job_thaw(job);
-    if (sig.sig == SIGKILL)
+    if (in_cgroup && sig.sig == SIGKILL)
         rc = cgroup_job_kill(job);
 
     if (rc == 0)

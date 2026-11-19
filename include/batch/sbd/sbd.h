@@ -186,7 +186,8 @@ int write_all(int, const char *, size_t);
  */
 int cgroup_init(void);
 int cgroup_job_create(struct sbd_job *);
-int cgroup_job_assign(struct sbd_job *);
+int cgroup_job_assign(struct sbd_job *, pid_t);
+int cgroup_job_has_pid(struct sbd_job *);
 void cgroup_job_destroy(struct sbd_job *);
 int cgroup_job_freeze(struct sbd_job *);
 int cgroup_job_thaw(struct sbd_job *);

@@ -356,8 +356,8 @@ static void job_terminate_check(struct sbd_job *job)
 
     if (job->terminate_kill_time > 0 && now >= job->terminate_kill_time) {
         LL_INFO("job=%ld grace expired, sending SIGKILL", job->job_id);
-        /* no cgroup, the old school way */
-        if (cgroup_job_kill(job) < 0)
+        /* not in its cgroup, the old school way */
+        if (!cgroup_job_has_pid(job) || cgroup_job_kill(job) < 0)
             killpg(job->pgid, SIGKILL);
         job->terminate_kill_time = 0;
     }

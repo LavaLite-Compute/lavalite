@@ -192,11 +192,16 @@ int cgroup_job_create(struct sbd_job *job)
     return 0;
 }
 
-int cgroup_job_assign(struct sbd_job *job)
+/*
+ * cgroup_job_assign - put the job process into its cgroup. Called by
+ * the parent right after fork(), before sbd handles another message:
+ * a signal for the job always finds it in the cgroup. Its children
+ * inherit the cgroup.
+ */
+int cgroup_job_assign(struct sbd_job *job, pid_t pid)
 {
     char knob[CG_PATH_MAX];
     char val[LL_BUFSIZ_32];
-    pid_t pid = getpid();
 
     snprintf(knob, sizeof(knob), "%s/job_%ld/cgroup.procs", cg_base, job->job_id);
     snprintf(val, sizeof(val), "%d", (int) pid);
@@ -208,6 +213,40 @@ int cgroup_job_assign(struct sbd_job *job)
 
     LL_INFO("job=%ld cgroup assigned pid=%d", job->job_id, (int) pid);
     return 0;
+}
+
+/*
+ * cgroup_job_has_pid - 1 if the job process is in the job's cgroup, from
+ * the kernel: /proc/<pid>/cgroup reads "0::/<path>/job_<id>". A signal
+ * through the cgroup of a job not in it reaches nobody and reports
+ * success, so the signal path asks first.
+ */
+int cgroup_job_has_pid(struct sbd_job *job)
+{
+    char path[LL_BUFSIZ_64];
+    snprintf(path, sizeof(path), "/proc/%d/cgroup", (int) job->pid);
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL)
+        return 0;
+
+    char want[LL_BUFSIZ_64];
+    snprintf(want, sizeof(want), "/job_%ld", job->job_id);
+    size_t wlen = strlen(want);
+
+    int found = 0;
+    char line[CG_PATH_MAX];
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        size_t len = strcspn(line, "\n");
+        line[len] = 0;
+        if (strncmp(line, "0::", 3) != 0)
+            continue;
+        if (len >= wlen && strcmp(line + len - wlen, want) == 0)
+            found = 1;
+    }
+    fclose(fp);
+
+    return found;
 }
 
 void cgroup_job_destroy(struct sbd_job *job)
