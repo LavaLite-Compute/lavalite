@@ -115,33 +115,52 @@ Verify:
 echo $LL_CONF_DIR
 ```
 
-## Authentication Key
+## Authentication Keys
 
-LavaLite uses a shared authentication key to sign requests exchanged
-between clients, `mbd`, and `sbd`.
+Every request and every daemon message is signed with HMAC-SHA256 and
+checked by its receiver. Two keys, 32 bytes each, in `$LL_CONF_DIR`:
 
-Generate the key:
+| Key             | Signs                        | Owner and mode            | Hosts                       |
+|-----------------|------------------------------|---------------------------|-----------------------------|
+| `ll.auth.key`   | client requests to `mbd`     | `root:lavalite 0640`      | every host                  |
+| `ll.daemon.key` | every `mbd` <-> `sbd` message | `lavalite:lavalite 0600`  | hosts running `mbd` or `sbd` |
+
+Users cannot read either key. Their requests are signed by `llsign`,
+a small helper installed setgid to the mbd group, see `llsign(8)`. It
+puts the caller's real uid and gid in the request, from the kernel,
+and signs only client requests.
+
+The security invariant: a non-root user can obtain an authenticated
+request only for their own uid. They cannot obtain one for another
+uid, nor any request accepted as a daemon operation. Root on a node
+is outside it, as with ssh.
+
+Only the mbd user may belong to the mbd group: whoever is in it can
+read `ll.auth.key` and sign requests as any user. `post-install.sh`
+warns about other members.
+
+Generate the keys once, on one host:
 
 ```sh
-dd if=/dev/urandom bs=32 count=1 | base64 \
+dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
     > $LL_CONF_DIR/ll.auth.key
+dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
+    > $LL_CONF_DIR/ll.daemon.key
 ```
 
-Set permissions:
+Copy them to the other hosts: `ll.auth.key` to every host,
+`ll.daemon.key` only to hosts running `mbd` or `sbd`. A submission
+host, where neither daemon runs, must not have the daemon key. All
+hosts must have the same files. `post-install.sh` sets the owner and
+mode of both.
 
-```sh
-chown lavalite:lavalite $LL_CONF_DIR/ll.auth.key
-chmod 644 $LL_CONF_DIR/ll.auth.key
-```
+`mbd` does not start without both keys, `sbd` without the daemon key;
+the log names the missing file.
 
-The key must be world readable because user commands and applications
-linked against `libllbatch` generate HMAC signatures locally and must
-be able to read it.
-
-The key authenticates the cluster, not the user: whoever can read it
-can sign a request with any uid. The trust boundary is the cluster,
-run LavaLite where the users who can log in are trusted not to forge
-requests. The key keeps out hosts and processes outside the cluster.
+Messages older than `LL_AUTH_MAX_AGE` seconds, default 60, are
+rejected: keep the clocks of all hosts in sync with NTP or chrony.
+Within that window a captured message can be sent again; capturing
+one needs root on a node or access to the network path.
 
 Every execution host must know the users' uids, from the same passwd,
 LDAP or other name service as the submission hosts. A host where the
@@ -283,6 +302,13 @@ The script performs the following operations:
 - chown lavalite:lavalite `var/state/sbd`
 - chown lavalite:lavalite  `var/log`
 - Sets `bin/bhist` to `root:lavalite` mode `2755` (setgid)
+- Sets `libexec/llsign` to `root:lavalite` mode `2755` (setgid)
+- Sets `etc/ll.auth.key` to `root:lavalite` mode `0640` and
+  `etc/ll.daemon.key` to `lavalite:lavalite` mode `0600`, if present
+- Warns if a user other than the mbd user is in the mbd group
+
+Run it again after every `make install`: install resets the owner and
+mode of `bhist` and `llsign`.
 
 ### Why bhist is setgid
 
@@ -292,6 +318,13 @@ user and group.
 `bhist` runs setgid with the mbd primary group, allowing it to read the
 event manifest and report only records visible to the calling user.
 
+### Why llsign is setgid
+
+`ll.auth.key` is readable only by the mbd group. `llsign` runs setgid
+with that group, so it can sign a user's request with the key while
+the user cannot read it. Setgid, not setuid root: its one privilege is
+reading the key, a bug in it cannot give root on the host.
+
 ## Directory Layout
 
 A typical installation contains:
@@ -300,6 +333,7 @@ A typical installation contains:
 /opt/lavalite-<version>
 ├── bin
 ├── sbin
+├── libexec
 ├── etc
 ├── lib
 ├── share
@@ -334,6 +368,13 @@ sbin/
 └── sbd
 ```
 
+### Helpers
+
+```text
+libexec/
+└── llsign      (setgid mbd_group after post-install)
+```
+
 ### Configuration
 
 ```text
@@ -341,7 +382,8 @@ etc/
 ├── ll.conf
 ├── llb.queues
 ├── llb.hosts
-└── ll.auth.key
+├── ll.auth.key
+└── ll.daemon.key   (hosts running mbd or sbd only)
 ```
 
 ### Master State
@@ -441,7 +483,8 @@ maintains them.
 Typical ownership:
 
 ```text
-ll.auth.key                lavalite:lavalite 644
+ll.auth.key                root:lavalite     640
+ll.daemon.key              lavalite:lavalite 600
 
 var/state/mbd              lavalite:lavalite 750
 var/state/mbd/manifest     lavalite:lavalite 640
@@ -450,6 +493,7 @@ var/log                    lavalite:lavalite 755
 var/state/sbd              root:root         755
 
 bin/bhist                  root:lavalite     2755
+libexec/llsign             root:lavalite     2755
 ```
 
 ## Create Configuration Files

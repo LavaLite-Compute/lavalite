@@ -66,4 +66,43 @@ fi
 chown "root:$MBD_GROUP" "$BHIST"
 chmod 2755 "$BHIST"
 
+# llsign: setgid so users can sign their own requests without reading
+# the client key, see llsign(8)
+LLSIGN="$PREFIX/libexec/llsign"
+if [ ! -f "$LLSIGN" ]; then
+    echo "post-install: $LLSIGN not found" >&2
+    exit 1
+fi
+
+chown "root:$MBD_GROUP" "$LLSIGN"
+chmod 2755 "$LLSIGN"
+
+# keys: the same files on every host, generated once and copied, so
+# not generated here. ll.auth.key on every host, ll.daemon.key only
+# where mbd or sbd runs.
+if [ -f "$LL_CONF_DIR/ll.auth.key" ]; then
+    chown "root:$MBD_GROUP" "$LL_CONF_DIR/ll.auth.key"
+    chmod 640 "$LL_CONF_DIR/ll.auth.key"
+else
+    echo "post-install: $LL_CONF_DIR/ll.auth.key missing" >&2
+fi
+
+if [ -f "$LL_CONF_DIR/ll.daemon.key" ]; then
+    chown "$MBD_USER:$MBD_GROUP" "$LL_CONF_DIR/ll.daemon.key"
+    chmod 600 "$LL_CONF_DIR/ll.daemon.key"
+else
+    echo "post-install: $LL_CONF_DIR/ll.daemon.key missing," \
+         "needed where mbd or sbd runs" >&2
+fi
+
+# whoever is in the mbd group can read the client key and sign as
+# any user: only the mbd user belongs in it
+MEMBERS=$(getent group "$MBD_GROUP" | cut -d: -f4)
+for m in $(echo "$MEMBERS" | tr ',' ' '); do
+    if [ "$m" != "$MBD_USER" ]; then
+        echo "post-install: WARNING user $m is in group $MBD_GROUP," \
+             "it can sign requests as any user" >&2
+    fi
+done
+
 echo "post-install: done"

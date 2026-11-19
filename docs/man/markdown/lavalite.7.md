@@ -83,24 +83,53 @@ Edit the three configuration files in **LL_CONF_DIR** (for example
 
 # AUTHENTICATION
 
-All communication between **mbd** and **sbd** is authenticated using
-HMAC-SHA256. Both daemons must share the same key file.
+Every client request and every **mbd** <-> **sbd** message is signed
+with HMAC-SHA256 over the whole message, header and payload, and
+checked by its receiver. Two keys, 32 bytes each, in
+*$LL_CONF_DIR*:
 
-## Generating the key
+**ll.auth.key**
+:   Client key: signs client requests to **mbd**. Owner
+    **root**, group the **mbd** user's group, mode 0640. On every
+    host.
 
-    dd if=/dev/urandom bs=32 count=1 | base64 > $LL_CONF_DIR/auth.key
-    chmod 644 $LL_CONF_DIR/auth.key
-    chown lavalite:lavalite $LL_CONF_DIR/auth.key
+**ll.daemon.key**
+:   Daemon key: signs every message between **mbd** and **sbd**,
+    **sbd** registration included. Owner the **mbd** user, mode 0600.
+    Only on hosts running **mbd** or **sbd**.
 
-The key file must be readable by **mbd** (runs as the lavalite user)
-and by root (for **sbd**). It must be world-readable.
+Users cannot read either key. Their requests are signed by
+**llsign**(8), installed setgid to the **mbd** group, which writes the
+caller's real uid and gid into the request and signs only client
+requests. **mbd** takes the user from the signed request and nowhere
+else.
+
+The security invariant: a non-root user can obtain an authenticated
+request only for their own uid. They cannot obtain one for another
+uid, nor any request accepted as a daemon operation. Root on a node is
+outside it.
+
+Only the **mbd** user may belong to the **mbd** group: a member can
+read **ll.auth.key** and sign requests as any user.
+
+## Generating the keys
+
+Once, on one host, then copied to the others:
+
+    dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
+        > $LL_CONF_DIR/ll.auth.key
+    dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
+        > $LL_CONF_DIR/ll.daemon.key
+
+**post-install.sh** sets owner and mode of both, and of **llsign**.
 
 ## Replay protection
 
-Each authenticated message carries a timestamp. Messages older than
-**LL_AUTH_MAX_AGE** seconds (default: 300) are rejected to prevent
-replay attacks. Ensure clock skew between master and execution hosts
-is kept below this threshold. Use NTP or chrony on all hosts.
+Each message carries a timestamp. Messages older than
+**LL_AUTH_MAX_AGE** seconds (default: 60) are rejected. Keep clock
+skew between hosts below this threshold, use NTP or chrony on all
+hosts. Within the window a captured message can be sent again;
+capturing one needs root on a node or access to the network path.
 
 # CGROUP SETUP
 
@@ -176,9 +205,12 @@ initiates the connection to **mbd** at startup and reconnects on failure.
 1. Create the lavalite system user on the master host.
 2. Install LavaLite under **/opt/lavalite-**_version_.
 3. Write **ll.conf**, **llb.queues**, and **llb.hosts**.
-4. Generate **auth.key** and set correct permissions.
+4. Generate **ll.auth.key** and **ll.daemon.key**, run
+   **post-install.sh**.
 5. Install and enable **lavalite-mbd.service** on the master host.
-6. Copy **ll.conf** and **auth.key** to each execution host.
+6. Copy **ll.conf**, **ll.auth.key** and **ll.daemon.key** to each
+   execution host; **ll.conf** and **ll.auth.key** only to submission
+   hosts. Run **post-install.sh** on each.
 7. Install and enable **lavalite-sbd.service** on each execution host.
 8. Verify with **bhosts** and **bqueues** from the master host.
 
@@ -193,8 +225,14 @@ initiates the connection to **mbd** at startup and reconnects on failure.
 *$LL_CONF_DIR/llb.hosts*
 :   Host configuration.
 
-*$LL_CONF_DIR/auth.key*
-:   HMAC-SHA256 authentication key.
+*$LL_CONF_DIR/ll.auth.key*
+:   Client key, see AUTHENTICATION.
+
+*$LL_CONF_DIR/ll.daemon.key*
+:   Daemon key, see AUTHENTICATION.
+
+*libexec/llsign*
+:   Signs client requests, see **llsign**(8).
 
 */etc/systemd/system/lavalite-mbd.service*
 :   systemd unit for mbd.

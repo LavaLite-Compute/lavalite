@@ -61,10 +61,13 @@ events during startup.
 *$LL_CONF_DIR*/llb.hosts
 :   Host and host group definitions.
 
-*$LL_CONF_DIR*/auth.key
-:   HMAC-SHA256 authentication key shared between mbd and sbd.
+*$LL_CONF_DIR*/ll.daemon.key
+:   Daemon key, signs every message to and from **sbd**. Required.
+
+*$LL_CONF_DIR*/ll.auth.key
+:   Client key, checks client requests. Required.
 
 # SEE ALSO
 
-**sbd**(8), **bsub**(1), **bjobs**(1), **bhosts**(1), **bqueues**(1),
+**sbd**(8), **llsign**(8), **bsub**(1), **bjobs**(1), **bhosts**(1), **bqueues**(1),
 **ll.conf**(5), **llb.queues**(5), **llb.hosts**(5)

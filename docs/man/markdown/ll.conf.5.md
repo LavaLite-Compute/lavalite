@@ -41,7 +41,7 @@ Lines starting with **#** are comments. Blank lines are ignored.
 
 **LL_CONF_DIR**
 :   Directory containing configuration files (**ll.conf**, **llb.queues**,
-    **llb.hosts**, **auth.key**).
+    **llb.hosts**, **llb.services**, **ll.auth.key**, **ll.daemon.key**).
 
 **LL_STATE_DIR**
 :   Directory where daemons write persistent state,
@@ -93,6 +93,12 @@ Lines starting with **#** are comments. Blank lines are ignored.
     **bjobs --done**, before a compaction may drop it. Younger
     finished jobs are kept across compactions and mbd restarts.
     0 drops every finished job at each compaction. Default: 3600.
+
+## Authentication (optional)
+
+**LL_AUTH_MAX_AGE**
+:   Seconds a signed message stays valid. Older messages are
+    rejected. Default 60. See **lavalite**(7).
 
 ## Timeouts (optional)
 

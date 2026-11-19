@@ -385,12 +385,6 @@ void service_job_running(struct job_data *job, struct mbd_host *host,
     int chan_id = inst->chan_id;
     inst->chan_id = -1;
 
-    if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("auth_sign_header failed job=%ld uid=%u", job->job_id,
-               inst->uid);
-        return;
-    }
-
     size_t siz = PACKET_HEADER_SIZE
         + xdr_sizeof((xdrproc_t)xdr_wire_svc_instance_info, &info);
 

@@ -23,20 +23,26 @@ bmove_SOURCES   = bmove.c $(COMMON_CMD_SOURCES)
 bpriority_SOURCES   = bpriority.c $(COMMON_CMD_SOURCES)
 bservices_SOURCES   = bservices.c $(COMMON_CMD_SOURCES)
 
+# llsign signs client requests, setgid like bhist, run by libllbat
+libexec_PROGRAMS = llsign
+llsign_SOURCES = llsign.c
+
 EXTRA_DIST = Make.common
 
 
-# bhist reads the manifest as the mbd group, see etc/post-install.sh.
-# install replaces it root:root 755, put the group and setgid back
-# when root and ll.conf is installed. chgrp first, it clears setgid.
+# bhist reads the manifest, llsign the client key, both as the mbd
+# group, see etc/post-install.sh. install replaces them root:root 755,
+# put the group and setgid back when root and ll.conf is installed.
+# chgrp first, it clears setgid.
 install-exec-hook:
 	@conf=$(DESTDIR)$(sysconfdir)/ll.conf; \
 	user=`grep '^LL_MBD_USER' $$conf 2>/dev/null | cut -d= -f2`; \
 	group=`id -gn "$$user" 2>/dev/null`; \
-	bhist=$(DESTDIR)$(bindir)/bhist; \
-	if [ -n "$$user" ] && [ -n "$$group" ] && [ "`id -u`" = 0 ]; then \
-	    chgrp "$$group" $$bhist && chmod 2755 $$bhist && \
-	    echo "bhist: setgid group $$group"; \
-	else \
-	    echo "bhist: not setgid, run post-install.sh as root"; \
-	fi
+	for f in $(DESTDIR)$(bindir)/bhist $(DESTDIR)$(libexecdir)/llsign; do \
+	    if [ -n "$$user" ] && [ -n "$$group" ] && [ "`id -u`" = 0 ]; then \
+	        chgrp "$$group" $$f && chmod 2755 $$f && \
+	        echo "$$f: setgid group $$group"; \
+	    else \
+	        echo "$$f: not setgid, run post-install.sh as root"; \
+	    fi; \
+	done

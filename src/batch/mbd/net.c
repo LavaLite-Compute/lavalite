@@ -101,8 +101,14 @@ static void route(int chan_id)
         return;
     }
 
-    if (auth_verify_header(&hdr) < 0) {
-        LL_ERR("failed validate header opcode=%s from=%s",
+    /* client requests with the client key, anything else on this
+     * port, sbd registration, with the daemon key */
+    int key = AUTH_KEY_DAEMON;
+    if (batch_op_is_client((enum batch_lib_op) hdr.operation))
+        key = AUTH_KEY_CLIENT;
+
+    if (auth_verify_msg(buf->data, buf->len, key) < 0) {
+        LL_ERR("failed validate message opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
@@ -314,8 +320,9 @@ void chan_shutdown(int chan_id)
     chan_close(chan_id);
 }
 
-int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
-                        size_t siz, bool_t (*xdr_func)(XDR *, void *))
+static int32_t enqueue_msg(int chan_id, struct protocol_header *hdr,
+                           void *payload, size_t siz,
+                           bool_t (*xdr_func)(XDR *, void *), int sign)
 {
     struct chan_buffer *buf;
     XDR xdrs;
@@ -338,6 +345,12 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
     buf->len = (size_t) xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
+    if (sign && auth_sign_msg(buf->data, buf->len, AUTH_KEY_DAEMON) < 0) {
+        LL_ERR("auth_sign_msg failed op=%d", hdr->operation);
+        chan_free_buf(buf);
+        return -1;
+    }
+
     if (chan_enqueue(chan_id, buf) < 0) {
         LL_ERR("chan_enqueue failed op=%d len=%d", hdr->operation,
                (int) buf->len);
@@ -352,6 +365,22 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
     }
 
     return 0;
+}
+
+/* replies to clients, not signed */
+int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
+                        size_t siz, bool_t (*xdr_func)(XDR *, void *))
+{
+    int32_t cc = enqueue_msg(chan_id, hdr, payload, siz, xdr_func, 0);
+    return cc;
+}
+
+/* messages to sbd, signed: sbd verifies every message from mbd */
+int32_t enqueue_signed(int chan_id, struct protocol_header *hdr, void *payload,
+                       size_t siz, bool_t (*xdr_func)(XDR *, void *))
+{
+    int32_t cc = enqueue_msg(chan_id, hdr, payload, siz, xdr_func, 1);
+    return cc;
 }
 
 int32_t enqueue_header(int chan_id, int operation, int status)

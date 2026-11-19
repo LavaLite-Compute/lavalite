@@ -187,3 +187,60 @@ const char *batch_op_str(enum batch_lib_op op)
 
     return names[op];
 }
+
+/*
+ * batch_op_is_client - 1 for the requests a client sends to mbd, 0 for
+ * everything else: acks and replies, mbd <-> sbd messages, unknown
+ * values. llsign signs only client requests, mbd verifies them with
+ * the client key and every other message with the daemon key.
+ *
+ * Every operation is listed and there is no default: a new operation
+ * that is not added here breaks the build (-Wswitch, -Werror).
+ */
+int batch_op_is_client(enum batch_lib_op op)
+{
+    switch (op) {
+    case BATCH_JOB_SUBMIT:
+    case BATCH_JOB_SIGNAL:
+    case BATCH_JOB_INFO:
+    case BATCH_HOST_INFO:
+    case BATCH_QUEUE_INFO:
+    case BATCH_GROUP_INFO:
+    case BATCH_TOKEN_INFO:
+    case BATCH_QUEUE_ADMIN:
+    case BATCH_HOST_ADMIN:
+    case BATCH_JOB_MOVE:
+    case BATCH_JOB_PRIORITY:
+    case BATCH_SERVICE_START:
+    case BATCH_SERVICE_INFO:
+    case BATCH_SERVICE_DELETE:
+        return 1;
+    case BATCH_JOB_SUBMIT_ACK:
+    case BATCH_JOB_SIGNAL_ACK:
+    case BATCH_JOB_INFO_ACK:
+    case BATCH_HOST_INFO_ACK:
+    case BATCH_QUEUE_INFO_ACK:
+    case BATCH_GROUP_INFO_ACK:
+    case BATCH_SBD_REGISTER:
+    case BATCH_SBD_REGISTER_ACK:
+    case BATCH_TOKEN_INFO_ACK:
+    case BATCH_NEW_JOB:
+    case BATCH_NEW_JOB_REPLY:
+    case BATCH_NEW_JOB_REPLY_ACK:
+    case BATCH_JOB_FINISH:
+    case BATCH_JOB_FINISH_ACK:
+    case BATCH_SBD_JOB_SIGNAL:
+    case BATCH_SBD_JOB_SIGNAL_REPLY:
+    case BATCH_JOB_MISSING:
+    case BATCH_QUEUE_ADMIN_ACK:
+    case BATCH_HOST_ADMIN_ACK:
+    case BATCH_JOB_MOVE_ACK:
+    case BATCH_JOB_PRIORITY_ACK:
+    case BATCH_SERVICE_START_ACK:
+    case BATCH_SERVICE_INFO_ACK:
+    case BATCH_SERVICE_DELETE_ACK:
+        return 0;
+    }
+
+    return 0;
+}

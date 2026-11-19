@@ -22,7 +22,8 @@ MAN5 = man5/ll.conf.5 \
 MAN7 = man7/lavalite.7
 
 MAN8 = man8/mbd.8 \
-       man8/sbd.8
+       man8/sbd.8 \
+       man8/llsign.8
 
 man1_MANS = $(MAN1)
 man5_MANS = $(MAN5)
@@ -47,7 +48,8 @@ EXTRA_DIST = \
 	markdown/llb.services.5.md \
 	markdown/lavalite.7.md \
 	markdown/mbd.8.md \
-	markdown/sbd.8.md
+	markdown/sbd.8.md \
+	markdown/llsign.8.md
 
 BUILT_SOURCES = $(MAN1) $(MAN5) $(MAN7) $(MAN8)
 CLEANFILES    = $(MAN1) $(MAN5) $(MAN7) $(MAN8)
@@ -73,6 +75,7 @@ man7/lavalite.7: markdown/lavalite.7.md
 
 man8/mbd.8: markdown/mbd.8.md
 man8/sbd.8: markdown/sbd.8.md
+man8/llsign.8: markdown/llsign.8.md
 
 $(MAN1) $(MAN5) $(MAN7) $(MAN8):
 	@mkdir -p $(dir $@)

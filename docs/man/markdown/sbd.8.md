@@ -58,8 +58,9 @@ status reporting.
 
 # FILES
 
-*$LL_CONF_DIR*/auth.key
-:   HMAC-SHA256 authentication key shared with **mbd**.
+*$LL_CONF_DIR*/ll.daemon.key
+:   Daemon key, signs every message to and from **mbd**. Required.
+    **sbd** does not use **ll.auth.key**.
 
 # SEE ALSO
 
