@@ -522,6 +522,7 @@ static struct mbd_queue *replay_queue(const char *name)
     ll_hash_init(&q->host_hash, 0);
     ll_hash_init(&q->user_hash, 0);
     q->state = QUEUE_CLOSED;
+    q->user_max_cpus = -1;
     q->stale = 1;
     ll_hash_insert(&stale_queue_hash, q->name, q, 0);
 

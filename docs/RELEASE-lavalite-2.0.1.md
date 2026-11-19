@@ -46,6 +46,15 @@ other members.
 - **Build with GCC 15.** GCC 15 defaults to C23; the XDR function
   pointers now have explicit prototypes.
 
+## Queues
+
+- **`USER_MAX_CPUS`** in `llb.queues`: the most CPUs one user's
+  running and suspended jobs may hold in the queue, counted as CPUs
+  per host times hosts. A job that would go over waits with the
+  reason *user CPU limit reached in queue*; a job larger than the
+  limit on its own is refused. For sites where groups compete for the
+  same queue. See `llb.queues(5)`.
+
 ## Commands
 
 - `bjobs -m` / `--machines` shows the jobs running on the given hosts,
@@ -88,7 +97,10 @@ commands, at the same time.
 
 - `docs/testing/21-auth.md`: keys, `llsign`, forged uids, another key,
   a fake `sbd`.
-- `src/tests/sim/simqa.sh`, with requests signed by `llsign`.
+- `src/tests/sim/simqa.sh`, with requests signed by `llsign`, a new
+  `user_max_cpus` scenario and a START line with the time for each
+  scenario.
+- `docs/testing/19-config-changes.md`: TEST-323, `USER_MAX_CPUS`.
 
 ## Known Limitations
 

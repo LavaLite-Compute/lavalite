@@ -394,6 +394,110 @@ static int tokens_available(const struct job_data *job)
     return 1;
 }
 
+/*
+ * USER_MAX_CPUS: the CPUs each user's jobs hold in each limited queue,
+ * counted from run_jobs_list at the start of a scheduling run, updated
+ * as the run dispatches, thrown away at its end. Nothing to keep in
+ * step with the many places a job starts or stops holding CPUs.
+ * Key uid@queue, value a malloc'd int.
+ */
+static struct ll_hash user_cpus;
+
+static int job_cpus(const struct job_data *job, int nhosts)
+{
+    int n = job->res.num_cpus * nhosts;
+    return n;
+}
+
+static void user_cpus_key(const struct job_data *job, char *key, size_t siz)
+{
+    snprintf(key, siz, "%u@%s", (unsigned int) job->uid, job->queue->name);
+}
+
+static int user_cpus_add(const struct job_data *job, int cpus)
+{
+    char key[LL_BUFSIZ_256];
+    user_cpus_key(job, key, sizeof(key));
+
+    int *n = ll_hash_search(&user_cpus, key);
+    if (n == NULL) {
+        n = calloc(1, sizeof(int));
+        if (n == NULL) {
+            LL_ERR("calloc user cpus key=%s failed", key);
+            return -1;
+        }
+        ll_hash_insert(&user_cpus, key, n, 0);
+    }
+    *n += cpus;
+    return 0;
+}
+
+static int user_cpus_get(const struct job_data *job)
+{
+    char key[LL_BUFSIZ_256];
+    user_cpus_key(job, key, sizeof(key));
+
+    int *n = ll_hash_search(&user_cpus, key);
+    if (n == NULL)
+        return 0;
+    return *n;
+}
+
+/* ll_hash_clear() hands the entry to the cleanup, not the value */
+static void user_cpus_free(void *p)
+{
+    struct ll_hash_entry *ent = p;
+    free(ent->value);
+}
+
+/* 1 if some queue has USER_MAX_CPUS and the counts are built, 0 if no
+ * queue has it, -1 on failure */
+static int user_cpus_build(void)
+{
+    int limited = 0;
+    for (struct ll_list_entry *e = queue_list.head; e; e = e->next) {
+        struct mbd_queue *q = (struct mbd_queue *) e;
+        if (q->user_max_cpus >= 0)
+            limited = 1;
+    }
+    if (!limited)
+        return 0;
+
+    if (ll_hash_init(&user_cpus, 0) < 0) {
+        LL_ERR("user cpus hash init failed");
+        return -1;
+    }
+    for (struct ll_list_entry *e = run_jobs_list.head; e; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+        if (job->queue->user_max_cpus < 0)
+            continue;
+        if (user_cpus_add(job, job_cpus(job, job->run_nhosts)) < 0) {
+            ll_hash_clear(&user_cpus, user_cpus_free);
+            return -1;
+        }
+    }
+    return 1;
+}
+
+/* the job fits if what its user holds in the queue plus what it asks
+ * for stays within the limit */
+static int user_cpus_fit(const struct job_data *job)
+{
+    int max = job->queue->user_max_cpus;
+    if (max < 0)
+        return 1;
+
+    int held = user_cpus_get(job);
+    int want = job_cpus(job, job->res.num_hosts);
+    if (held + want > max) {
+        LL_DEBUG("job=%ld user=%s queue=%s holds=%d wants=%d "
+                 "user_max_cpus=%d",
+                 job->job_id, job->user, job->queue->name, held, want, max);
+        return 0;
+    }
+    return 1;
+}
+
 void schedule(void)
 {
     int free_slots = mark_candidates();
@@ -409,6 +513,11 @@ void schedule(void)
     LL_DEBUG("scheduling clusterwide free_slots=%d", free_slots);
 
     ll_list_sort_buf(&pend_jobs_list, sort_buf, pend_job_cmp);
+
+    /* without the counts a limit cannot be checked: next cycle */
+    int limited = user_cpus_build();
+    if (limited < 0)
+        return;
 
     struct ll_list_entry *e = pend_jobs_list.head;
     while (e) {
@@ -439,6 +548,11 @@ void schedule(void)
             continue;
         }
 
+        if (limited && !user_cpus_fit(job)) {
+            job->pend_reason = PEND_USER_CPU_LIMIT;
+            continue;
+        }
+
         if (!tokens_available(job)) {
             job->pend_reason = PEND_TOKENS;
             continue;
@@ -455,7 +569,7 @@ void schedule(void)
         if (n < 0) {
             LL_ERRX("job=%ld failed to build host plan, trying next cycle",
                     job->job_id);
-            return;
+            break;
         }
         if (n == 0) {
             job->pend_reason = diag_reason(&diag);
@@ -481,6 +595,9 @@ void schedule(void)
         job->queue->num_pend--;
         job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
         job->queue->num_hosts_used += job->run_nhosts;
+        if (limited && job->queue->user_max_cpus >= 0 &&
+            user_cpus_add(job, job_cpus(job, job->run_nhosts)) < 0)
+            break;
         /* Decrease the cluster wide available slots, no point on trying
          * to build plans for jobs if there are no slots.
          */
@@ -493,6 +610,10 @@ void schedule(void)
         if (free_slots <= 0)
             break;
     }
+
+    if (limited)
+        ll_hash_clear(&user_cpus, user_cpus_free);
+
     mbd_assert_counters();
 }
 

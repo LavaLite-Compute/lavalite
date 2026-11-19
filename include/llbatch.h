@@ -43,6 +43,7 @@ enum pend_reason {
     PEND_HOST_OVERFLOW,
     PEND_DEPEND,
     PEND_QUEUE_JOB_LIMIT,
+    PEND_USER_CPU_LIMIT,
 };
 
 // Pending messages table
@@ -179,6 +180,7 @@ struct queue_info {
     int32_t status;         /* QUEUE_OPEN | QUEUE_CLOSED */
     int32_t priority;       /* scheduling priority, higher wins */
     int32_t max_jobs;       /* max concurrent jobs, -1 = unlimited */
+    int32_t user_max_cpus;  /* max CPUs per user, -1 = unlimited */
     int32_t num_jobs;       /* total: pend + held + run + susp */
     int32_t num_pend;       /* pending jobs */
     int32_t num_held;       /* held jobs */

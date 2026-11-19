@@ -106,6 +106,12 @@ Each queue is displayed as a block with the following fields:
 :   Maximum number of running and suspended jobs in the queue,
     as described under **MAX**. No limit is displayed as **unlimited**.
 
+**User CPUs**
+:   Maximum number of CPUs one user's running and suspended jobs may
+    hold in the queue, configured by **USER_MAX_CPUS** in
+    **llb.queues**. No limit is displayed as **unlimited**. How many a
+    user holds is not shown: **bjobs** lists their jobs.
+
 **Users**
 :   Users allowed to submit to this queue. **all** if unrestricted.
 

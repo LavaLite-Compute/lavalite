@@ -26,6 +26,7 @@ struct queue_conf {
     char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int priority;
     int max_jobs;
+    int user_max_cpus;
     int state;
 };
 
@@ -526,6 +527,7 @@ static int commit_queue(struct queue_conf *qc)
     q->priority = qc->priority;
     q->state = QUEUE_OPEN;
     q->max_jobs = qc->max_jobs;
+    q->user_max_cpus = qc->user_max_cpus;
 
     ll_list_append(&queue_list, &q->ent);
     ll_hash_insert(&queue_name_hash, q->name, q, 0);
@@ -567,6 +569,17 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
         return 0;
     }
 
+    /* CPUs held by one user's running and suspended jobs in the
+     * queue, as for MAX_JOBS unset is unlimited, 0 dispatches nothing */
+    if (strcasecmp(key, "USER_MAX_CPUS") == 0) {
+        if (!ll_atoi(val, &qc->user_max_cpus) || qc->user_max_cpus < 0) {
+            LL_ERRX("queue=%s bad USER_MAX_CPUS=%s, using unlimited", qc->name,
+                    val);
+            qc->user_max_cpus = -1;
+        }
+        return 0;
+    }
+
     LL_ERRX("queue=%s unknown key=%s, ignored", qc->name, key);
 
     return 0;
@@ -604,6 +617,7 @@ static int parse_queues(const char *path)
                 in_section = 1;
                 memset(&qc, 0, sizeof(qc));
                 qc.max_jobs = -1; /* unlimited unless MAX_JOBS is set */
+                qc.user_max_cpus = -1;
             }
             continue;
         }

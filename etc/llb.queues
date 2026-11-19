@@ -7,6 +7,9 @@
 # USERS       - Users allowed to access the queue
 # MAX_JOBS    - Maximum number of running and suspended jobs in the queue;
 #               omitted = unlimited, 0 = dispatch nothing
+# USER_MAX_CPUS - Maximum CPUs one user's running and suspended jobs hold
+#               in the queue, cpus per host x hosts; omitted = unlimited,
+#               0 = dispatch nothing
 # DESCRIPTION - Human readable description
 #
 

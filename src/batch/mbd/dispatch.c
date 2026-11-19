@@ -343,6 +343,7 @@ int queues_info(XDR *xdrs, int chan_id)
         queues[i].status = q->state;
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
+        queues[i].user_max_cpus = q->user_max_cpus;
         queues[i].num_jobs = q->num_jobs;
         queues[i].num_pend = q->num_pend;
         queues[i].num_run = q->num_run;

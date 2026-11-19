@@ -347,6 +347,65 @@ grep "queue=<queue>" <mbd log>
 No error in `llb.queues` stops `mbd`; each one is logged with what
 `mbd` did instead.
 
+---
+
+## TEST-323: USER_MAX_CPUS
+
+Also run by `simqa.sh` as `user_max_cpus`.
+
+### Setup
+
+On a queue with at least two hosts of 4 CPUs or more, restart `mbd`
+with:
+
+```
+USER_MAX_CPUS = 4
+```
+
+### Commands
+
+As one user:
+
+```sh
+bqueues -l <queue>
+bsub -q <queue> -m <host1> -n 2 sleep 600     # a
+bsub -q <queue> -m <host2> -n 2 sleep 600     # b
+bsub -q <queue> -m <host1> -n 1 sleep 600     # c
+bjobs -p
+bsub -q <queue> -n 8 sleep 600                # too large
+```
+
+Restart `mbd`, then:
+
+```sh
+bjobs -p
+bkill <a>
+bjobs <c>
+```
+
+As another user:
+
+```sh
+bsub -q <queue> -m <host1> -n 1 sleep 60
+```
+
+### Expected Result
+
+- `bqueues -l` shows `User CPUs:   4 per user`.
+- `a` and `b` run; `c` stays pending with
+  `PEND: user CPU limit reached in queue`, though `host1` has free
+  CPUs.
+- The job of 8 CPUs is refused, `mbd` logs `asks for cpus=8 ...
+  user_max_cpus=4`.
+- After the restart `c` is still pending; once `a` is killed it runs.
+- The other user's job runs at once: the limit is per user.
+
+### Pass Criteria
+
+A user holds at most `USER_MAX_CPUS` CPUs in the queue, running and
+suspended jobs counted as CPUs per host times hosts, across `mbd`
+restarts.
+
 ## Completion Criteria
 
 The configuration test set passes when:
@@ -358,5 +417,6 @@ The configuration test set passes when:
 - Lowering CPU, memory or GPUs under running jobs keeps `mbd` up and
   drains the host.
 - `HOSTS = all` means every host, `all` is reserved.
+- `USER_MAX_CPUS` holds a user to its CPUs, per user, across restarts.
 - Removing a service with live instances: see TEST-248 in
   `18-robustness.md`.

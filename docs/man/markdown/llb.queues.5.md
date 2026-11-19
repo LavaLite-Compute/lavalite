@@ -55,6 +55,17 @@ Multiple queues may be defined in the same file.
     omitted, unlimited. **0** dispatches nothing: the queue accepts
     jobs and keeps them pending. Optional.
 
+**USER_MAX_CPUS**
+:   Maximum number of CPUs the running and suspended jobs of one user
+    hold in the queue, counted as CPUs per host times hosts: a job
+    of **-n 16 --nhosts 4** holds 64. A job that would take its user
+    over the limit stays pending, with the reason *user CPU limit
+    reached in queue*. A job asking on its own for more than the
+    limit is refused at submission, and **bmove** refuses to move it
+    to the queue. It applies to every job in the queue, service jobs
+    included; admins' jobs count like anyone else's. If omitted,
+    unlimited. **0** dispatches nothing. Optional.
+
 **DESCRIPTION**
 :   Human-readable description of the queue. Optional.
 
@@ -63,7 +74,8 @@ Multiple queues may be defined in the same file.
 An error in a queue block never stops **mbd**. It is logged with the
 queue name and what **mbd** did instead:
 
-- a bad **MAX_JOBS** or **PRIORITY** value: the default, as if omitted;
+- a bad **MAX_JOBS**, **USER_MAX_CPUS** or **PRIORITY** value: the
+  default, as if omitted;
 - an unknown key or a line without **=**: the line is ignored;
 - a missing **HOSTS**: the queue is kept with no host;
 - a block without **QUEUE_NAME**, or a name defined twice: the block

@@ -9,7 +9,8 @@
 # The script builds its own config in a scratch directory, starts mbd
 # as SIMQA_USER and two sim sbds, worker1 and worker2, cloned from the
 # real host SIMQA_HOST, which has no sbd and stays unavail. Every
-# scenario prints PASS or FAIL, the summary is at the end.
+# scenario prints START with the time, then PASS or FAIL, the summary
+# is at the end.
 #
 # Run as root: sim sbds run as root, mbd refuses to.
 #   SIMQA_USER   job owner and LavaLite admin, default lavalite
@@ -77,10 +78,11 @@ conf_hosts()   # $1 sims, e.g. "worker1 worker2", $2 1 = with token pool
     } > $CONF/llb.hosts
 }
 
-conf_queues()   # $1 hosts, $2 1 = with queue extra
+conf_queues()   # $1 hosts, $2 1 = with queue extra, $3 USER_MAX_CPUS of normal
 {
     {
         printf "Begin Queue\nQUEUE_NAME = normal\nPRIORITY = 10\n"
+        [ -n "$3" ] && printf "USER_MAX_CPUS = %s\n" "$3"
         printf "HOSTS = %s\nDESCRIPTION = normal\nEnd Queue\n" "$1"
         if [ "$2" = 1 ]; then
             printf "Begin Queue\nQUEUE_NAME = extra\nPRIORITY = 20\n"
@@ -586,6 +588,53 @@ t_finish_reused_id()
     as_user bkill $a >/dev/null 2>&1
 }
 
+# USER_MAX_CPUS = 4 on normal: a user holds at most 4 CPUs there,
+# a job of more than 4 is refused, the count survives an mbd restart
+undo_limit()
+{
+    as_user bkill -s 9 0 >/dev/null 2>&1
+    mbd_stop
+    conf_full
+    mbd_start
+}
+
+t_user_max_cpus()
+{
+    local T=user_max_cpus
+    mbd_stop
+    conf_queues "$H worker1 worker2" 1 4
+    mbd_start
+    wait_host worker1 ok 20 && wait_host worker2 ok 20
+    local a=$(submit -m worker1 -n 2 sleep 9701)
+    local b=$(submit -m worker2 -n 2 sleep 9702)
+    wait_state $a RUN 15 && wait_state $b RUN 15 ||
+        { fail $T "no RUN $(jstate $a) $(jstate $b)"; undo_limit; return; }
+    # 4 held: worker1 has 2 free CPUs, the limit keeps c pending
+    local c=$(submit -m worker1 -n 1 sleep 9703)
+    sleep 5
+    local reason=$(as_user bjobs -p 2>/dev/null | grep -c "user CPU limit")
+    [ "$(jstate $c)" = PEND ] && [ "$reason" -ge 1 ] ||
+        { fail $T "c=$(jstate $c) reason=$reason"; undo_limit; return; }
+    # larger than the limit on its own: refused at submit
+    local big=$(submit -m worker1 -n 8 sleep 9704)
+    [ -z "$big" ] ||
+        { fail $T "job of 8 cpus accepted id=$big"; undo_limit; return; }
+    # the counts are rebuilt from the running jobs after a restart
+    mbd_restart
+    wait_host worker1 ok 20
+    sleep 5
+    [ "$(jstate $c)" = PEND ] ||
+        { fail $T "after restart c=$(jstate $c)"; undo_limit; return; }
+    as_user bkill -s 9 $a >/dev/null
+    wait_state $c RUN 15 ||
+        { fail $T "c not RUN after a freed, $(jstate $c)"; undo_limit; return; }
+    as_user bkill -s 9 $b $c >/dev/null
+    mbd_stop
+    conf_full
+    mbd_start
+    pass $T
+}
+
 t_counters()
 {
     local T=counters_and_alive
@@ -633,8 +682,9 @@ for t in ${SIMQA_ONLY:-t_kill9_running t_kill9_disp t_kill9_all \
          t_pid_timeout t_pid_timeout_mbd_restart t_kill9_disconnected \
          t_taint t_orphans t_token_pool_orphan t_replay_machines_tokens \
          t_retention t_suspend_restart t_gpu_multihost t_manifest_removed \
-         t_finish_reused_id t_counters}; do
+         t_finish_reused_id t_user_max_cpus t_counters}; do
     settle
+    echo "START: ${t#t_} $(date +%T)"
     $t
 done
 

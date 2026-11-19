@@ -114,6 +114,11 @@ static void print_queue_long(const struct queue_info *q)
         printf("unlimited\n");
     else
         printf("%d\n", q->max_jobs);
+    printf("  User CPUs:   ");
+    if (q->user_max_cpus < 0)
+        printf("unlimited\n");
+    else
+        printf("%d per user\n", q->user_max_cpus);
 
     print_wrapped("Users:", q->users, q->num_users, "all");
     /* no hosts means none: the queue schedules nothing */

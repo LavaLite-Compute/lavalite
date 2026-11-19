@@ -55,6 +55,23 @@ void job_free(struct job_data *job)
     free(job);
 }
 
+/* a job asking for more CPUs than the queue's USER_MAX_CPUS could
+ * never run there */
+static int queue_cpus_fit(const struct mbd_queue *q, const struct job_data *job)
+{
+    if (q->user_max_cpus < 0)
+        return 1;
+
+    int want = job->res.num_cpus * job->res.num_hosts;
+    if (want > q->user_max_cpus) {
+        LL_ERRX("job=%ld user=%s asks for cpus=%d, queue=%s "
+                "user_max_cpus=%d",
+                job->job_id, job->user, want, q->name, q->user_max_cpus);
+        return 0;
+    }
+    return 1;
+}
+
 static int queue_user_allowed(const struct mbd_queue *q, const char *user)
 {
     // 0 means all... sigh
@@ -147,6 +164,13 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
         LL_ERRX("job=%ld invalid num_host=%d forcing to one 1", job->job_id,
                 job->res.num_hosts);
         job->res.num_hosts = 1;
+    }
+
+    /* larger than USER_MAX_CPUS on its own: it would never run */
+    if (!queue_cpus_fit(job->queue, job)) {
+        free(job);
+        *err = EINVAL;
+        return NULL;
     }
 
     job->run_hosts = calloc(job->res.num_hosts, sizeof(struct mbd_host *));
@@ -1702,6 +1726,11 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         LL_ERRX("job=%ld user=%s not allowed in queue=%s", wm.job_id,
                 job->user, to->name);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
+        return 0;
+    }
+
+    if (!queue_cpus_fit(to, job)) {
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EINVAL);
         return 0;
     }
 

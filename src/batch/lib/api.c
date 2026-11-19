@@ -34,6 +34,7 @@ const char *pend_reason_msg[] = {
     [PEND_HOST_OVERFLOW] = "host allocation size overflow buffer",
     [PEND_DEPEND] = "waiting for job dependency",
     [PEND_QUEUE_JOB_LIMIT] = "queue concurrent job limit reached",
+    [PEND_USER_CPU_LIMIT] = "user CPU limit reached in queue",
 };
 
 struct queue_info *llb_queue_info(int32_t *nqueues)
@@ -110,6 +111,7 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         dst->status = src->status;
         dst->priority = src->priority;
         dst->max_jobs = src->max_jobs;
+        dst->user_max_cpus = src->user_max_cpus;
         dst->num_jobs = src->num_jobs;
         dst->num_pend = src->num_pend;
         dst->num_run = src->num_run;

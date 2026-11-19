@@ -183,6 +183,7 @@ struct mbd_queue {
     char users[LL_BUFSIZ_4K];
     int priority;
     int max_jobs; /* max concurrent jobs, -1 = unlimited */
+    int user_max_cpus; /* max CPUs one user's jobs hold, -1 = unlimited */
     int num_jobs;
     int num_pend;
     int num_run;
