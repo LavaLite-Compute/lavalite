@@ -340,7 +340,9 @@ static void sbd_maybe_reap_children(void)
 
 static void job_terminate_check(struct sbd_job *job)
 {
-    if (job->terminate_time <= 0)
+    /* terminate_time is zeroed when SIGUSR2 is sent, terminate_kill_time
+     * when SIGKILL is: done only when both are */
+    if (job->terminate_time <= 0 && job->terminate_kill_time <= 0)
         return;
     if (job->exit_status_valid)
         return;
