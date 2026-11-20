@@ -95,7 +95,9 @@ struct sbd_job {
     /*
      * exit_status is the exit status of job.sh, the job script sbd
      * forked. It becomes the job exit status. It is not an aggregate
-     * of the processes job.sh started.
+     * of the processes job.sh started. Once job.sh is reaped, a
+     * terminating signal sent on request (sbd_job_signal) replaces it:
+     * sbd does not see how the processes left behind end.
      *
      * exit_status_valid: exit_status is known. Normally from waitpid()
      * on job.sh, persisted at reap; after an sbd restart that missed

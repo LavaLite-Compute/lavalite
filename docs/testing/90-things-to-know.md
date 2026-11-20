@@ -136,16 +136,29 @@ filing a test failure.
   and `sbd` reconnects. A hung `mbd` whose kernel still answers is not
   detected this way.
 
+- **A job stays RUN after its script exits.** By design: the job lives
+  until the last process in its cgroup exits, and `sbd` never kills
+  job processes on its own. A process the script left in the
+  background keeps the job `RUN` and its resources held. The exit
+  status is the script's, also when the job ends later. A terminating
+  signal sent on request after the script exited, `bkill --signal term`
+  or a run limit, replaces it: the job ends `EXIT` with that signal,
+  even if the process caught it and exited by itself. Not a hang: look
+  at `cgroup.procs` of the job cgroup.
+
 - **Without cgroup v2 job control falls back to the process group.**
-  `sbd` implements SIGSTOP, SIGCONT and SIGKILL through the job cgroup
-  (`cgroup.freeze`, `cgroup.kill`), which also reaches processes that
-  left the job's process group. On a cgroup v1 host `sbd` logs
-  `cgroup init failed, resource enforcement disabled`, memory and CPU
-  are not enforced, and these signals go through `killpg` instead
-  (`no cgroup, using killpg` in the `sbd` log). A process that called
-  `setsid()` escapes them. On a hybrid host
-  `LL_CGROUP_ROOT=/sys/fs/cgroup/unified/lavalite` gives freeze and
-  kill, still without memory and CPU limits.
+  `sbd` sends every signal through the job cgroup when it has
+  processes: SIGSTOP and SIGCONT freeze and thaw it, SIGKILL is
+  `cgroup.kill`, other signals go to each process in `cgroup.procs`.
+  That also reaches processes that left the job's process group. On a
+  cgroup v1 host `sbd` logs `cgroup init failed, resource enforcement
+  disabled`, memory and CPU are not enforced, signals go through
+  `killpg` and job liveness is its process group: a process that
+  called `setsid()` escapes both, and the job can finish with it still
+  running. The same holds for a job that could not be assigned to its
+  cgroup (`child not in its cgroup, process group only` in the `sbd`
+  log). On a hybrid host `LL_CGROUP_ROOT=/sys/fs/cgroup/unified/lavalite`
+  gives freeze, kill and liveness, still without memory and CPU limits.
 
 - **A failed kill is not reported to the user.** `bkill` and
   `bservices -d` return as soon as `mbd` queued the signal. If `sbd`

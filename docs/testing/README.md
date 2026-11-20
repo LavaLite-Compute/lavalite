@@ -50,6 +50,11 @@ LavaLite commands, daemons, persistent state, and event replay logic.
   Keys and `llsign`: users cannot read the keys, cannot sign for
   another uid or as a daemon, daemons need the daemon key.
 
+- `22-job-lifetime.md`
+  A job lives until the last process in its cgroup exits: leftover
+  and `setsid` processes, signals after the script exited, `sbd`
+  restart.
+
 ### Configuration
 
 - `19-config-changes.md`

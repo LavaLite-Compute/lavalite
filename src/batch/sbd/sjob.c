@@ -1137,6 +1137,23 @@ int job_signal(struct sbd_job *job, int sig)
     return 0;
 }
 
+/* sig_terminates - the default action of sig ends a process */
+static bool_t sig_terminates(int sig)
+{
+    switch (sig) {
+    case SIGSTOP:
+    case SIGCONT:
+    case SIGTSTP:
+    case SIGTTIN:
+    case SIGTTOU:
+    case SIGCHLD:
+    case SIGURG:
+    case SIGWINCH:
+        return false;
+    }
+    return true;
+}
+
 /* job signal  (mbd -> sbd: send signal to job)
  * Every signal goes to every process of the job, see job_signal().
  * STOP/CONT freeze and thaw the cgroup, KILL is cgroup.kill.
@@ -1163,6 +1180,21 @@ int sbd_job_signal(XDR *xdrs)
     }
 
     status = job_signal(job, sig.sig);
+    if (status != 0)
+        goto reply;
+
+    // job.sh already reaped: its processes left behind take the signal,
+    // their end is not seen by sbd. A terminating signal on request
+    // becomes the job exit status, as mbd does for kill.
+    if (job->exit_status_valid && sig_terminates(sig.sig)) {
+        job->exit_status = sig.sig;
+        if (sbd_job_state_write(job) < 0) {
+            LL_ERRX("job=%ld state write failed", job->job_id);
+            sbd_fatal(SBD_FATAL_STORAGE);
+        }
+        LL_INFO("job=%ld job.sh reaped, exit_status=0x%x from signal",
+                job->job_id, job->exit_status);
+    }
 
 reply:
     if (sbd_send_msg(BATCH_SBD_JOB_SIGNAL_REPLY, status, &sig, LL_BUFSIZ_1K,
