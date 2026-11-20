@@ -32,7 +32,7 @@ static void job_status_checking(void);
 static void job_new_drive(void);
 static void job_finish_drive(void);
 static void mbd_reconnect_try(void);
-static bool_t sbd_pid_alive(struct sbd_job *);
+static bool_t job_pids_alive(struct sbd_job *);
 static void sbd_cleanup(void);
 static int opt_op_timer = SBD_OPERATION_TIMER;
 static int opt_resend_timer = SBD_RESEND_ACK_TIMEOUT;
@@ -319,11 +319,17 @@ static void sbd_reap_children(void)
             continue;
         }
 
-        // fill the job exit status value from wait
-        // into the job structure
+        // job.sh exit status from wait is the job exit status. The job
+        // is not finished: processes job.sh left keep it alive, see
+        // job_pids_alive(). Persist it: until the last process ends
+        // can be hours, a restart must not lose it, the exit file does
+        // not exist when job.sh was killed by a signal.
         job->exit_status = status;
         job->exit_status_valid = true;
-        job->end_time = time(NULL);
+        if (sbd_job_state_write(job) < 0) {
+            LL_ERRX("job=%ld state write failed", job->job_id);
+            sbd_fatal(SBD_FATAL_STORAGE);
+        }
 
         LL_INFO("job=%ld reaped pid=%d exit_status=0x%x", job->job_id,
                 (int) pid, job->exit_status);
@@ -338,19 +344,19 @@ static void sbd_maybe_reap_children(void)
     sbd_reap_children();
 }
 
+/* called only for a job still alive: job.sh may be gone, its processes
+ * still get the signals, see job_signal() */
 static void job_terminate_check(struct sbd_job *job)
 {
     /* terminate_time is zeroed when SIGUSR2 is sent, terminate_kill_time
      * when SIGKILL is: done only when both are */
     if (job->terminate_time <= 0 && job->terminate_kill_time <= 0)
         return;
-    if (job->exit_status_valid)
-        return;
 
     time_t now = time(NULL);
     if (now >= job->terminate_time && job->terminate_kill_time == 0) {
         LL_INFO("job=%ld terminate_time reached, sending SIGUSR2", job->job_id);
-        killpg(job->pgid, SIGUSR2);
+        job_signal(job, SIGUSR2);
         job->terminate_time = 0; /* arm SIGKILL after grace */
         job->terminate_kill_time = now + 60;
         return;
@@ -358,9 +364,7 @@ static void job_terminate_check(struct sbd_job *job)
 
     if (job->terminate_kill_time > 0 && now >= job->terminate_kill_time) {
         LL_INFO("job=%ld grace expired, sending SIGKILL", job->job_id);
-        /* not in its cgroup, the old school way */
-        if (!cgroup_job_has_pid(job) || cgroup_job_kill(job) < 0)
-            killpg(job->pgid, SIGKILL);
+        job_signal(job, SIGKILL);
         job->terminate_kill_time = 0;
     }
 }
@@ -373,9 +377,6 @@ static void job_status_checking(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *) e;
 
-        if (job->exit_status_valid)
-            continue;
-
         if (job->finish_acked > 0) {
             LL_ERRX("job=%ld finish_acked still on list (bug)", job->job_id);
             assert(0);
@@ -385,10 +386,19 @@ static void job_status_checking(void)
         if (!job->pid_acked)
             continue;
 
-        job_terminate_check(job);
-
-        if (sbd_pid_alive(job))
+        /* job processes still running, job.sh may be gone: nothing to
+         * do but the -t deadline */
+        if (job_pids_alive(job)) {
+            job_terminate_check(job);
             continue;
+        }
+
+        /* all gone and job.sh exit status known: FINISH sends it */
+        if (job->exit_status_valid)
+            continue;
+
+        /* all gone, status unknown: sbd restarted before the reap.
+         * exit file / retry / fallback */
 
         int exit_code;
         time_t done_time;
@@ -475,8 +485,22 @@ static void job_finish_drive(void)
         if (!job->pid_acked)
             continue;
 
+        // job.sh not reaped yet, no exit status
         if (!job->exit_status_valid)
             continue;
+
+        // job.sh is gone but job processes are still running
+        if (job_pids_alive(job))
+            continue;
+
+        // finished: exit status known and no process left
+        if (job->end_time == 0) {
+            job->end_time = now;
+            if (sbd_job_state_write(job) < 0) {
+                LL_ERRX("job=%ld state write failed", job->job_id);
+                sbd_fatal(SBD_FATAL_STORAGE);
+            }
+        }
 
         if (job->finish_acked) {
             LL_ERRX("job=%ld finish_acked still on list (bug)", job->job_id);
@@ -511,8 +535,19 @@ static struct sbd_job *sbd_find_job_by_pid(pid_t pid)
     return NULL;
 }
 
-static bool_t sbd_pid_alive(struct sbd_job *job)
+/*
+ * job_pids_alive - is any process of the job still running.
+ * Alive if its cgroup is populated or its process group exists: either
+ * says yes is yes. The cgroup alone is not enough, a job that could not
+ * be assigned has an empty cgroup and runs in its process group.
+ * Without a usable cgroup the process group decides, as before.
+ * job.sh is not special: it can be gone and the job alive.
+ */
+static bool_t job_pids_alive(struct sbd_job *job)
 {
+    if (cgroup_job_populated(job) == 1)
+        return true;
+
     pid_t target;
 
     if (job->pgid > 1)

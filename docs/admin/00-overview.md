@@ -67,6 +67,15 @@ The execution daemon places each job into a dedicated cgroup and uses
 that cgroup for resource accounting, resource enforcement, and job
 control operations such as suspend, resume, and terminate.
 
+A job lives until the last process in its cgroup exits, and `sbd`
+never kills job processes on its own. There is no automatic cleanup
+kill when the job script exits, and this lifecycle rule introduces no
+timeout of its own: a process the script left running keeps the job
+running. Job processes are signaled only on request, by `bkill` or by
+a limit the user or the queue set, and the signal reaches every
+process in the cgroup, also one that left the process group with
+`setsid`. The job exit status is the exit status of the job script.
+
 GPU allocation is scheduler-enforced and prevents conflicting placement,
 but does not currently provide operating-system-level device isolation.
 

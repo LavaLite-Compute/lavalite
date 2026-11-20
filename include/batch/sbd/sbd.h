@@ -92,6 +92,23 @@ struct sbd_job {
 
     int retry_exit_count;
 
+    /*
+     * exit_status is the exit status of job.sh, the job script sbd
+     * forked. It becomes the job exit status. It is not an aggregate
+     * of the processes job.sh started.
+     *
+     * exit_status_valid: exit_status is known. Normally from waitpid()
+     * on job.sh, persisted at reap; after an sbd restart that missed
+     * the reap, from the exit file, else the fallback after the retries.
+     *
+     * exit_status_valid does not mean the job is finished. job.sh can
+     * exit and leave processes running. The job is alive while its
+     * cgroup is not empty or, without a usable cgroup, while its
+     * process group exists: see job_pids_alive().
+     *
+     * A job finishes when exit_status_valid && !job_pids_alive().
+     * end_time is when the job finished, not when job.sh exited.
+     */
     int exit_status;
     bool_t exit_status_valid;
     time_t end_time;
@@ -187,9 +204,14 @@ int write_all(int, const char *, size_t);
 int cgroup_init(void);
 int cgroup_job_create(struct sbd_job *);
 int cgroup_job_assign(struct sbd_job *, pid_t);
-int cgroup_job_has_pid(struct sbd_job *);
+int cgroup_job_populated(struct sbd_job *);
 void cgroup_job_destroy(struct sbd_job *);
 int cgroup_job_freeze(struct sbd_job *);
 int cgroup_job_thaw(struct sbd_job *);
 int cgroup_job_kill(struct sbd_job *);
+int cgroup_job_signal(struct sbd_job *, int);
 int cgroup_job_collect(struct sbd_job *);
+
+/* signal every process of the job: through its cgroup, else its
+ * process group. 0 or an errno for the reply to mbd */
+int job_signal(struct sbd_job *, int);

@@ -593,6 +593,15 @@ static int spawn_job(struct sbd_job *job)
         // child becomes leader of its own group
         setpgid(0, 0);
 
+        // child enters its cgroup while still root, before job.sh can
+        // fork anything. The parent does the same, whichever runs first
+        // wins. On failure log and continue: the job runs in its process
+        // group only and a process that calls setsid() escapes job
+        // control and the job liveness check.
+        if (cgroup_job_assign(job, getpid()) < 0)
+            LL_ERR("job=%ld child not in its cgroup, process group only",
+                   job->job_id);
+
         // child goes and runs the job
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
@@ -608,7 +617,8 @@ static int spawn_job(struct sbd_job *job)
 
     // parent: before sbd reads its next message, which may be a signal
     // for this job, the job has its process group and is in its cgroup.
-    // The child does the same setpgid(), whichever runs first wins.
+    // The child does the same setpgid() and cgroup assign, whichever
+    // runs first wins.
     setpgid(pid, pid);
     if (cgroup_job_assign(job, pid) < 0)
         LL_ERR("job=%ld pid=%d not in its cgroup, signals go to its "
@@ -1094,13 +1104,42 @@ void sbd_job_finish_ack(XDR *xdrs)
     free(job);
 }
 
+/*
+ * job_signal - signal every process of the job.
+ * Through its cgroup when the cgroup has processes: that reaches also
+ * those that left the process group, and those left after job.sh
+ * exited. Else the process group, the old school way: no cgroup, or
+ * the job could not be assigned to it and its cgroup is empty.
+ * Returns 0 or an errno.
+ */
+int job_signal(struct sbd_job *job, int sig)
+{
+    if (cgroup_job_populated(job) == 1) {
+        if (cgroup_job_signal(job, sig) == 0)
+            return 0;
+        LL_ERR("job=%ld cgroup signal %d failed, using killpg", job->job_id,
+               sig);
+    }
+
+    if (job->pgid <= 0) {
+        LL_ERR("job=%ld invalid process group pgid=%d sig=%d failed",
+               job->job_id, job->pgid, sig);
+        return ESRCH;
+    }
+
+    if (killpg(job->pgid, sig) < 0) {
+        int err = errno;
+        LL_ERR("job=%ld killpg pgid=%d sig=%d failed", job->job_id,
+               job->pgid, sig);
+        return err;
+    }
+
+    return 0;
+}
+
 /* job signal  (mbd -> sbd: send signal to job)
- * LavaLite-managed job control:
- * STOP/CONT/KILL are implemented through cgroup v2, which reaches
- * every process of the job, also those that left its process group.
- * When the job is not in its cgroup (v1 host, cgroup init or assign
- * failed) they fall back to the process group, the old school way.
- * All other signals are delivered to the job process group.
+ * Every signal goes to every process of the job, see job_signal().
+ * STOP/CONT freeze and thaw the cgroup, KILL is cgroup.kill.
  */
 int sbd_job_signal(XDR *xdrs)
 {
@@ -1123,37 +1162,7 @@ int sbd_job_signal(XDR *xdrs)
         goto reply;
     }
 
-    /* through the cgroup only if the job is in it: the cgroup of a job
-     * that is not takes the signal, reaches nobody and says ok */
-    int in_cgroup = cgroup_job_has_pid(job);
-
-    int rc = -1;
-    if (in_cgroup && sig.sig == SIGSTOP)
-        rc = cgroup_job_freeze(job);
-    if (in_cgroup && sig.sig == SIGCONT)
-        rc = cgroup_job_thaw(job);
-    if (in_cgroup && sig.sig == SIGKILL)
-        rc = cgroup_job_kill(job);
-
-    if (rc == 0)
-        goto reply;
-
-    if (sig.sig == SIGSTOP || sig.sig == SIGCONT || sig.sig == SIGKILL)
-        LL_INFO("job=%ld sig=%d no cgroup, using killpg", job->job_id,
-                sig.sig);
-
-    if (job->pgid <= 0) {
-        LL_ERR("job=%ld invalid process group pgid=%d sig=%d failed",
-               job->job_id, job->pgid, sig.sig);
-        status = ESRCH;
-        goto reply;
-    }
-
-    if (killpg(job->pgid, sig.sig) < 0) {
-        status = errno;
-        LL_ERR("job=%ld killpg pgid=%d sig=%d failed", job->job_id,
-               job->pgid, sig.sig);
-    }
+    status = job_signal(job, sig.sig);
 
 reply:
     if (sbd_send_msg(BATCH_SBD_JOB_SIGNAL_REPLY, status, &sig, LL_BUFSIZ_1K,

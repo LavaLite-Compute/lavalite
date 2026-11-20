@@ -8,7 +8,13 @@
  *   /sys/fs/cgroup/lavalite/          <- fixed base, created by sbd at init
  *       cgroup.subtree_control        <- we write "+memory +cpu" here
  *       job_123/
- *           cgroup.procs              <- we write pid here after fork
+ *           cgroup.procs              <- parent and child write the job
+ *                                        pid after fork, we read it to
+ *                                        signal every job process
+ *           cgroup.events             <- we read "populated": the job is
+ *                                        alive until its last process ends
+ *           cgroup.freeze             <- SIGSTOP / SIGCONT
+ *           cgroup.kill               <- SIGKILL
  *           memory.max                <- we write limit here (mem_mb > 0)
  *           cpu.max                   <- we write quota here (ncpus > 0)
  *       job_124/
@@ -26,7 +32,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -194,9 +202,14 @@ int cgroup_job_create(struct sbd_job *job)
 
 /*
  * cgroup_job_assign - put the job process into its cgroup. Called by
- * the parent right after fork(), before sbd handles another message:
- * a signal for the job always finds it in the cgroup. Its children
- * inherit the cgroup.
+ * both sides of fork(), like setpgid(), whichever runs first wins and
+ * the second write is a no-op:
+ *  - the child, still root, before it execs job.sh: job.sh and all it
+ *    forks start in the cgroup
+ *  - the parent, before sbd handles another message: a signal for the
+ *    job always finds it in the cgroup
+ * cgroup.procs is not a data file, each write() asks the kernel to
+ * move the pid, the kernel serializes them.
  */
 int cgroup_job_assign(struct sbd_job *job, pid_t pid)
 {
@@ -216,37 +229,48 @@ int cgroup_job_assign(struct sbd_job *job, pid_t pid)
 }
 
 /*
- * cgroup_job_has_pid - 1 if the job process is in the job's cgroup, from
- * the kernel: /proc/<pid>/cgroup reads "0::/<path>/job_<id>". A signal
- * through the cgroup of a job not in it reaches nobody and reports
- * success, so the signal path asks first.
+ * cgroup_job_populated - "populated" from the job cgroup.events, kept
+ * by the kernel: 1 while a process of the job is in the cgroup, 0 once
+ * the last one exited. The job.sh pid does not matter, job.sh can be
+ * gone and its children still running.
+ *
+ *  1  processes in the cgroup
+ *  0  cgroup empty: an answer, not an error. Also the job that could
+ *     not be assigned, the caller asks its process group too
+ * -1  cannot tell: no cgroup, open, read or parse failed
+ *
+ * Logged at debug only: on a host without cgroup this is every job
+ * at every tick.
  */
-int cgroup_job_has_pid(struct sbd_job *job)
+int cgroup_job_populated(struct sbd_job *job)
 {
-    char path[LL_BUFSIZ_64];
-    snprintf(path, sizeof(path), "/proc/%d/cgroup", (int) job->pid);
+    char path[CG_PATH_MAX];
+    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.events", cg_base,
+             job->job_id);
 
     FILE *fp = fopen(path, "r");
-    if (fp == NULL)
-        return 0;
+    if (fp == NULL) {
+        LL_DEBUG("job=%ld cgroup fopen(%s) failed: %m", job->job_id, path);
+        return -1;
+    }
 
-    char want[LL_BUFSIZ_64];
-    snprintf(want, sizeof(want), "/job_%ld", job->job_id);
-    size_t wlen = strlen(want);
-
-    int found = 0;
-    char line[CG_PATH_MAX];
+    int populated = -1;
+    char line[LL_BUFSIZ_64];
     while (fgets(line, sizeof(line), fp) != NULL) {
-        size_t len = strcspn(line, "\n");
-        line[len] = 0;
-        if (strncmp(line, "0::", 3) != 0)
+        if (strncmp(line, "populated ", 10) != 0)
             continue;
-        if (len >= wlen && strcmp(line + len - wlen, want) == 0)
-            found = 1;
+        if (line[10] == '1')
+            populated = 1;
+        if (line[10] == '0')
+            populated = 0;
+        break;
     }
     fclose(fp);
 
-    return found;
+    if (populated < 0)
+        LL_DEBUG("job=%ld no populated in %s", job->job_id, path);
+
+    return populated;
 }
 
 void cgroup_job_destroy(struct sbd_job *job)
@@ -305,6 +329,49 @@ int cgroup_job_kill(struct sbd_job *job)
     }
 
     LL_INFO("job=%ld cgroup killed", job->job_id);
+    return 0;
+}
+
+/*
+ * cgroup_job_signal - signal every process in the job cgroup, also
+ * those that left the job process group with setsid().
+ *
+ * SIGSTOP  -> cgroup.freeze 1
+ * SIGCONT  -> cgroup.freeze 0
+ * SIGKILL  -> cgroup.kill, the kernel kills all, forks included
+ * others   -> kill() each pid in cgroup.procs. Not atomic: a process
+ *             forked after the read misses the signal. Accepted.
+ *
+ * 0 ok, -1 failed, the caller falls back to the process group.
+ */
+int cgroup_job_signal(struct sbd_job *job, int sig)
+{
+    if (sig == SIGSTOP)
+        return cgroup_job_freeze(job);
+    if (sig == SIGCONT)
+        return cgroup_job_thaw(job);
+    if (sig == SIGKILL)
+        return cgroup_job_kill(job);
+
+    char path[CG_PATH_MAX];
+    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.procs", cg_base,
+             job->job_id);
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL) {
+        LL_ERR("job=%ld cgroup fopen(%s) failed: %m", job->job_id, path);
+        return -1;
+    }
+
+    int pid;
+    while (fscanf(fp, "%d", &pid) == 1) {
+        /* ESRCH: exited since the read */
+        if (kill(pid, sig) < 0 && errno != ESRCH)
+            LL_ERR("job=%ld kill(%d, %d) failed: %m", job->job_id, pid, sig);
+    }
+    fclose(fp);
+
+    LL_INFO("job=%ld cgroup signal %d sent", job->job_id, sig);
     return 0;
 }
 
