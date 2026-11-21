@@ -4,7 +4,8 @@
 # Robustness scenarios on a one box sim cluster: pid timeout, host
 # taint, orphan jobs, bkill -s 9, finished job retention, a suspended
 # job across mbd restarts, gpus of a multi-host job, a removed
-# manifest, a finish for a reused job id.
+# manifest, a finish for a reused job id, the job lifetime: a job
+# lives until the last process in its cgroup exits.
 #
 # The script builds its own config in a scratch directory, starts mbd
 # as SIMQA_USER and two sim sbds, worker1 and worker2, cloned from the
@@ -26,6 +27,10 @@ BIN=${SIMQA_BIN:-$(cd "$(dirname "$0")/../../batch" && pwd)}
 P=${SIMQA_PORT:-43124}
 QA=$(mktemp -d /tmp/simqa.XXXXXX)
 CONF=$QA/conf
+# own cgroup root: the sim job ids start at 1, under the default
+# /sys/fs/cgroup/lavalite they would share the job_<id> of an installed
+# sbd on this box
+CG=/sys/fs/cgroup/simqa
 PASS=0
 FAIL=0
 
@@ -45,6 +50,7 @@ LL_CLUSTER_NAME=simqa
 LL_STATE_DIR=$QA/state
 LL_LOG_DIR=$QA/log
 LL_LOG_MASK=LOG_DEBUG
+LL_CGROUP_ROOT=$CG
 LL_MBD_PORT=$P
 LL_MBD_HOST=$H
 LL_MBD_USER=$U
@@ -156,6 +162,22 @@ sbd_crash() { kill -KILL "$(cat $QA/sbd.$1.pid)" 2>/dev/null; }
 sbd_pause() { kill -STOP "$(cat $QA/sbd.$1.pid)"; }
 sbd_cont()  { kill -CONT "$(cat $QA/sbd.$1.pid)"; }
 
+# kill what is left in the simqa cgroups and remove them: at the end
+# of a run, and at the start for what a kept run left behind
+cg_clean()
+{
+    local d
+    [ -d $CG ] || return 0
+    for d in $CG/job_*; do
+        [ -d "$d" ] && echo 1 > $d/cgroup.kill 2>/dev/null
+    done
+    sleep 1
+    for d in $CG/job_*; do
+        [ -d "$d" ] && rmdir "$d" 2>/dev/null
+    done
+    rmdir $CG 2>/dev/null
+}
+
 teardown()
 {
     for s in worker1 worker2; do
@@ -164,7 +186,13 @@ teardown()
     done
     mbd_stop
     pkill -u "$U" -f "sleep 9[0-9][0-9][0-9]" 2>/dev/null
-    [ "$SIMQA_KEEP" = 1 ] && echo "kept $QA" || rm -rf $QA
+    if [ "$SIMQA_KEEP" = 1 ]; then
+        echo "kept $QA"
+        [ -d $CG ] && echo "kept $CG"
+    else
+        rm -rf $QA
+        cg_clean
+    fi
 }
 trap teardown EXIT
 
@@ -172,6 +200,7 @@ trap teardown EXIT
 
 pass() { echo "PASS: $1"; PASS=$((PASS + 1)); }
 fail() { echo "FAIL: $1: $2"; FAIL=$((FAIL + 1)); }
+skip() { echo "SKIP: $1: $2"; }
 
 submit()   # args to bsub, prints the job id
 {
@@ -635,6 +664,152 @@ t_user_max_cpus()
     pass $T
 }
 
+# ---------------------------------------------------------------- job lifetime
+#
+# A job lives until the last process in its cgroup exits, sbd never
+# kills on its own. The job scripts are in $QA/jobs, see jobs_write.
+# Without a working cgroup sbd runs in process group mode and the
+# setsid processes escape: the tests that need the cgroup skip.
+
+jobs_write()
+{
+    mkdir -p $QA/jobs
+    cat > $QA/jobs/linger.sh <<'END'
+#!/bin/sh
+sleep 9 &
+exit 3
+END
+    cat > $QA/jobs/linger_long.sh <<'END'
+#!/bin/sh
+sleep 20 &
+exit 3
+END
+    cat > $QA/jobs/escape.sh <<'END'
+#!/bin/sh
+setsid sleep 9501 &
+exit 0
+END
+    cat > $QA/jobs/escape_kill.sh <<'END'
+#!/bin/sh
+setsid sleep 9502 &
+exit 0
+END
+    cat > $QA/jobs/nousr2.sh <<'END'
+#!/bin/sh
+setsid sh -c 'trap "" USR2; sleep 9503' &
+exit 0
+END
+    chmod 755 $QA/jobs $QA/jobs/*.sh
+}
+
+cgroup_ok()
+{
+    ! slog worker1 | grep -q "cgroup init failed"
+}
+
+xstatus()   # job, the exit_status of its finish in bhist
+{
+    as_user bhist $1 2>/dev/null | grep -oP 'exit_status: \K[0-9]+' | tail -1
+}
+
+t_linger()
+{
+    local T=linger
+    local j=$(submit --machines worker1 $QA/jobs/linger.sh)
+    wait_state $j RUN 15 || { fail $T "no RUN"; return; }
+    # the script exited at once, its sleep 9 keeps the job
+    sleep 4
+    [ "$(jstate $j)" = RUN ] || { fail $T "not RUN after script exit, state=$(jstate $j)"; return; }
+    wait_state $j EXIT 20 || { fail $T "no EXIT, state=$(jstate $j)"; return; }
+    [ "$(xstatus $j)" = 768 ] && pass $T || fail $T "exit_status=$(xstatus $j), not 768"
+}
+
+t_setsid_signals()
+{
+    local T=setsid_signals
+    cgroup_ok || { skip $T "no cgroup"; return; }
+    local j=$(submit --machines worker1 $QA/jobs/escape.sh)
+    wait_state $j RUN 15 || { fail $T "no RUN"; return; }
+    sleep 3
+    [ "$(jstate $j)" = RUN ] || { fail $T "not RUN after script exit, state=$(jstate $j)"; return; }
+    alive 9501 || { fail $T "no setsid sleep"; return; }
+
+    as_user bkill -s stop $j >/dev/null
+    wait_state $j SUSP 10 || { fail $T "no SUSP, state=$(jstate $j)"; return; }
+    grep -q "frozen 1" $CG/job_$j/cgroup.events || { fail $T "cgroup not frozen"; return; }
+    as_user bkill -s cont $j >/dev/null
+    wait_state $j RUN 10 || { fail $T "no RUN after cont, state=$(jstate $j)"; return; }
+    grep -q "frozen 0" $CG/job_$j/cgroup.events || { fail $T "cgroup still frozen"; return; }
+
+    # term reaches the setsid sleep, the script was reaped with 0: the
+    # signal becomes the exit status
+    as_user bkill -s term $j >/dev/null
+    wait_state $j EXIT 15 || { fail $T "no EXIT after term, state=$(jstate $j)"; return; }
+    alive 9501 && { fail $T "setsid sleep alive"; return; }
+    [ "$(xstatus $j)" = 15 ] && pass $T || fail $T "exit_status=$(xstatus $j), not 15"
+}
+
+t_setsid_kill9()
+{
+    local T=setsid_kill9
+    cgroup_ok || { skip $T "no cgroup"; return; }
+    local j=$(submit --machines worker1 $QA/jobs/escape_kill.sh)
+    wait_state $j RUN 15 || { fail $T "no RUN"; return; }
+    sleep 3
+    alive 9502 || { fail $T "no setsid sleep"; return; }
+    as_user bkill -s 9 $j >/dev/null
+    [ "$(jstate $j)" = EXIT ] || { fail $T "not EXIT at once, state=$(jstate $j)"; return; }
+    wait_log "job=$j finish_acked and freed" 15 worker1 || { fail $T "sbd did not free"; return; }
+    alive 9502 && { fail $T "setsid sleep alive"; return; }
+    [ -d $CG/job_$j ] && fail $T "cgroup job_$j left" || pass $T
+}
+
+t_linger_sbd_restart()
+{
+    local T=linger_sbd_restart
+    local j=$(submit --machines worker1 $QA/jobs/linger_long.sh)
+    wait_state $j RUN 15 || { fail $T "no RUN"; return; }
+    # script reaped, its exit status persisted, the sleep 20 keeps the job
+    wait_log "job=$j reaped" 10 worker1 || { fail $T "script not reaped"; return; }
+    sbd_stop worker1
+    sleep 2
+    sbd_start worker1
+    wait_host worker1 ok 30 || { fail $T "worker1 not back"; return; }
+    wait_state $j RUN 15 || { fail $T "not RUN after restart, state=$(jstate $j)"; return; }
+    wait_state $j EXIT 40 || { fail $T "no EXIT, state=$(jstate $j)"; return; }
+    slog worker1 | grep -q "job=$j read exit file" && { fail $T "status from exit file, not state"; return; }
+    [ "$(xstatus $j)" = 768 ] && pass $T || fail $T "exit_status=$(xstatus $j), not 768"
+}
+
+t_no_children()
+{
+    local T=no_children
+    local j=$(submit --machines worker1 true)
+    local k=$(submit --machines worker1 false)
+    wait_state $j DONE 15 && wait_state $k EXIT 15 &&
+        pass $T || fail $T "states: $(jstate $j) $(jstate $k)"
+}
+
+# --terminate after the script exited: SIGUSR2 at the deadline, the
+# setsid process ignores it, SIGKILL after the 60 seconds grace. The
+# deadline has minute granularity: up to 3 minutes.
+t_terminate_setsid()
+{
+    local T=terminate_setsid
+    cgroup_ok || { skip $T "no cgroup"; return; }
+    local dl=$(date -d '+2 min' +%H:%M)
+    local j=$(submit --machines worker1 --terminate $dl $QA/jobs/nousr2.sh)
+    wait_state $j RUN 15 || { fail $T "no RUN"; return; }
+    sleep 3
+    alive 9503 || { fail $T "no setsid sleep"; return; }
+    wait_log "job=$j terminate_time reached" 130 worker1 || { fail $T "no SIGUSR2"; return; }
+    sleep 3
+    alive 9503 || { fail $T "sleep did not ignore SIGUSR2"; return; }
+    wait_log "job=$j grace expired" 70 worker1 || { fail $T "no SIGKILL"; return; }
+    wait_log "job=$j finish_acked and freed" 15 worker1 || { fail $T "sbd did not free"; return; }
+    alive 9503 && fail $T "setsid sleep alive" || pass $T
+}
+
 t_counters()
 {
     local T=counters_and_alive
@@ -669,6 +844,9 @@ settle()
 [ "$(id -u)" = 0 ] || { echo "simqa: run as root"; exit 1; }
 id "$U" >/dev/null 2>&1 || { echo "simqa: no user $U"; exit 1; }
 chmod 755 $QA
+jobs_write
+[ -d $CG ] && echo "simqa: removing $CG of a previous run"
+cg_clean
 
 conf_ll 1000 3600
 conf_full
@@ -682,7 +860,9 @@ for t in ${SIMQA_ONLY:-t_kill9_running t_kill9_disp t_kill9_all \
          t_pid_timeout t_pid_timeout_mbd_restart t_kill9_disconnected \
          t_taint t_orphans t_token_pool_orphan t_replay_machines_tokens \
          t_retention t_suspend_restart t_gpu_multihost t_manifest_removed \
-         t_finish_reused_id t_user_max_cpus t_counters}; do
+         t_finish_reused_id t_user_max_cpus t_linger t_setsid_signals \
+         t_setsid_kill9 t_linger_sbd_restart t_no_children \
+         t_terminate_setsid t_counters}; do
     settle
     echo "START: ${t#t_} $(date +%T)"
     $t

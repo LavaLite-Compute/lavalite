@@ -69,6 +69,9 @@ LavaLite commands, daemons, persistent state, and event replay logic.
 - `bench-plan.md`
   Performance benchmark plan.
 
+- `simqa.md`
+  How to run `simqa.sh`, its options, output and scenarios.
+
 ### Planned
 
 - `bhist`, `bhosts`, `bqueues`, `bgroups`, `btokens` command tests.
@@ -82,8 +85,10 @@ user against a running cluster. Each script prints `PASS`, `FAIL` or
 `echotest`, and skip when it is not configured.
 
 `src/tests/sim/simqa.sh` runs the robustness scenarios of
-`18-robustness.md` on one box, as root, with its own configuration,
-`mbd` and two sim `sbd`s. It needs no running cluster.
+`18-robustness.md` and the job lifetime scenarios of
+`22-job-lifetime.md` on one box, as root, with its own configuration,
+`mbd` and two sim `sbd`s. It needs no running cluster. How to run it
+and read its output: `simqa.md`.
 
 ## Test Format
 

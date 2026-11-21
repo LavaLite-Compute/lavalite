@@ -66,6 +66,19 @@ EOF
 chmod 755 $HOME/lt/*.sh
 ```
 
+## Automation
+
+`src/tests/sim/simqa.sh` runs these tests on one box, see `simqa.md`:
+`t_linger` TEST-330, `t_setsid_signals` TEST-331..333,
+`t_setsid_kill9` TEST-334, `t_terminate_setsid` TEST-335,
+`t_linger_sbd_restart` TEST-336, `t_no_children` TEST-337.
+
+```sh
+sudo SIMQA_ONLY="t_linger t_setsid_signals t_setsid_kill9 \
+    t_terminate_setsid t_linger_sbd_restart t_no_children" \
+    ./src/tests/sim/simqa.sh
+```
+
 ## TEST-330: Script exits, child keeps the job running
 
 ### Commands

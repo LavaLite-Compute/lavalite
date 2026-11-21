@@ -47,7 +47,8 @@ sudo SIMQA_USER=lavalite ./src/tests/sim/simqa.sh
 ```
 
 `SIMQA_ONLY="t_taint t_orphans"` runs a subset, `SIMQA_KEEP=1` keeps
-the scratch directory with logs, state and manifest.
+the scratch directory with logs, state and manifest. All options and
+how to read a failure: `simqa.md`.
 `SIMQA_ONLY=t_system` runs `src/tests/system/run_tests.sh` against
 the same sim cluster as a regression run; `bsub_gpu` fails there, the
 sims have no GPU, and `bsub_io` needs `/export/soft/tmp`. Each test below
