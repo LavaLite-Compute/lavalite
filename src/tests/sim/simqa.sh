@@ -1,6 +1,9 @@
 #!/bin/bash
 # tests/sim/simqa.sh
 #
+# simqa.sh, simulated QA, runs the automated robustness and job lifetime
+# scenarios on one box
+#
 # Robustness scenarios on a one box sim cluster: pid timeout, host
 # taint, orphan jobs, bkill -s 9, finished job retention, a suspended
 # job across mbd restarts, gpus of a multi-host job, a removed
@@ -870,5 +873,6 @@ done
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
+echo "Elapsed: $((SECONDS / 60))m $((SECONDS % 60))s"
 [ $FAIL -eq 0 ] || SIMQA_KEEP=1
 [ $FAIL -eq 0 ]
