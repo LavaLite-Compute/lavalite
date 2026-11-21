@@ -128,6 +128,13 @@ desktop session or display server are not propagated.
 :   Terminate the job at the specified deadline. The job receives SIGUSR2
     and is killed if it does not exit within one minute.
 
+The times of **-b** and **-t** are read in the local time zone of the
+**bsub** process: the host's time zone, or **TZ** if set. **bsub**
+converts them at submission to an absolute time, seconds since the
+epoch, and that is what **mbd** and **sbd** use; their time zone does
+not change it. A time already past means its next occurrence: tomorrow
+for *hour*:*minute*, next month when a *day* is given.
+
 **-W**, **--time** [*hours*:]*minutes*
 :   Run limit, counted from the moment the job starts executing; time
     spent pending or being dispatched does not count. When the limit is

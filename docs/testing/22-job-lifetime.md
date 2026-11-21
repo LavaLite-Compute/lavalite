@@ -37,7 +37,7 @@ cat /sys/fs/cgroup/lavalite/job_<jobid>/cgroup.procs
 
 `populated 1` the job is alive, `populated 0` it can finish.
 
-`bhist -l` prints the raw wait status: exit code 3 is
+`bhist` prints the raw wait status: exit code 3 is
 `exit_status: 768`.
 
 ### Job scripts
@@ -86,7 +86,7 @@ Wait about 60 seconds.
 
 ```sh
 bjobs -a <jobid>
-bhist -l <jobid>
+bhist <jobid>
 ```
 
 ### Expected Result
@@ -94,7 +94,7 @@ bhist -l <jobid>
 - After 10 seconds the script has exited, the job is still `RUN`,
   `cgroup.events` shows `populated 1`.
 - When `sleep` exits the job goes to `EXIT`.
-- `bhist -l` shows `exit_status: 768`, the script's `exit 3`.
+- `bhist` shows `exit_status: 768`, the script's `exit 3`.
 
 ### Pass Criteria
 
@@ -185,7 +185,7 @@ With the job of TEST-331:
 bkill --signal term <jobid>
 sleep 5
 bjobs -a <jobid>
-bhist -l <jobid>
+bhist <jobid>
 ```
 
 On the execution host:
@@ -197,7 +197,7 @@ pgrep -f 'sleep 3600'
 ### Expected Result
 
 - The `sleep` is gone, the cgroup emptied, the job finished.
-- The job is `EXIT`, `bhist -l` shows `exit_status: 15`: the script
+- The job is `EXIT`, `bhist` shows `exit_status: 15`: the script
   was already reaped with `exit 0`, the signal sent on request replaces
   its status.
 - The `sbd` log shows `cgroup signal 15 sent` and
@@ -286,13 +286,13 @@ execution host. Then wait about 60 seconds.
 
 ```sh
 bjobs -a <jobid>
-bhist -l <jobid>
+bhist <jobid>
 ```
 
 ### Expected Result
 
 - The job stays `RUN` across the restart until `sleep` exits.
-- `bhist -l` shows `exit_status: 768`: the script status saved at reap
+- `bhist` shows `exit_status: 768`: the script status saved at reap
   survives the restart.
 - The `sbd` log after the restart does not show `read exit file` nor
   `declare exited` for the job.

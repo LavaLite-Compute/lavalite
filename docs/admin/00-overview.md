@@ -179,6 +179,14 @@ than with what was merely attempted.
 After restart, `mbd` replays the event manifest and reconstructs
 scheduler state.
 
+### Absolute Time
+
+The daemons work in absolute time, seconds since the epoch. Times
+given by users, `bsub -b` and `bsub -t`, are read in the local
+time zone of the `bsub` process and converted to absolute time at
+submission, see `bsub(1)`. The time zone of `mbd` and `sbd` only
+changes how times are printed in their logs.
+
 ### Simple Administration
 
 Cluster configuration is stored in text files:
