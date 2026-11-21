@@ -146,19 +146,20 @@ filing a test failure.
   even if the process caught it and exited by itself. Not a hang: look
   at `cgroup.procs` of the job cgroup.
 
-- **Without cgroup v2 job control falls back to the process group.**
+- **If cgroup setup fails, job control falls back to the process
+  group.** cgroup v2 is required (see `docs/admin/01-install.md`).
   `sbd` sends every signal through the job cgroup when it has
   processes: SIGSTOP and SIGCONT freeze and thaw it, SIGKILL is
   `cgroup.kill`, other signals go to each process in `cgroup.procs`.
-  That also reaches processes that left the job's process group. On a
-  cgroup v1 host `sbd` logs `cgroup init failed, resource enforcement
-  disabled`, memory and CPU are not enforced, signals go through
-  `killpg` and job liveness is its process group: a process that
-  called `setsid()` escapes both, and the job can finish with it still
-  running. The same holds for a job that could not be assigned to its
-  cgroup (`child not in its cgroup, process group only` in the `sbd`
-  log). On a hybrid host `LL_CGROUP_ROOT=/sys/fs/cgroup/unified/lavalite`
-  gives freeze, kill and liveness, still without memory and CPU limits.
+  That also reaches processes that left the job's process group. If
+  `sbd` logs `cgroup init failed, resource enforcement disabled`,
+  usually missing delegation, it keeps running degraded: memory and
+  CPU are not enforced, signals go through `killpg` and job liveness
+  is its process group. A process that called `setsid()` escapes both,
+  and the job can finish with it still running. The same holds for a
+  job that could not be assigned to its cgroup (`child not in its
+  cgroup, process group only` in the `sbd` log). Fix the cgroup setup,
+  this is not a supported configuration.
 
 - **A failed kill is not reported to the user.** `bkill` and
   `bservices -d` return as soon as `mbd` queued the signal. If `sbd`
