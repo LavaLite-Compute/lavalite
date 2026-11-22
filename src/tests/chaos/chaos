@@ -6,11 +6,15 @@
 # own windows, keep the cluster busy. For --seconds chaos picks at
 # random, each at its own interval:
 #
-#   kill    SIGKILL every mbd or sbd process on a host, systemd brings
-#           them back (Restart=on-failure)
+#   kill    SIGKILL every mbd process on a host, or one sbd picked at
+#           random among those on the host, systemd brings it back
+#           (Restart=on-failure)
 #   freeze  SIGSTOP one sbd on a host for a while, then SIGCONT: past
 #           20 seconds mbd's pid timeout disconnects it
 #   stop    systemctl stop mbd or sbd on a host for a while, then start
+#
+# A host can run many sbd, each its own systemd unit, all but one with
+# -s: kill and freeze pick any of them. stop only knows lavalite-sbd.
 #
 # Every --core-every seconds, and at the end, it looks for core files
 # made since it started: in the state tree of every host, where the
@@ -18,9 +22,10 @@
 # coredumpctl. chaos only sends SIGKILL, SIGSTOP and SIGCONT, none of
 # them dumps core: every core is a crash.
 #
-# At the end it thaws and starts what it left down, waits until every
-# daemon is up, and checks mbd: no "Assertion" in its journal, no new
-# "bad counters" in its log (set LL_ASSERT_COUNTERS=1 for the run).
+# At the end it thaws and starts what it left down, waits until no
+# lavalite-* unit on any host is failed or restarting, and checks mbd:
+# no "Assertion" in its journal, no new "bad counters" in its log (set
+# LL_ASSERT_COUNTERS=1 for the run).
 # Exits 0 when all is well.
 #
 # Every action is logged with a timestamp, to match a jload or sload
@@ -105,7 +110,7 @@ def sbin_dir():
 
 
 def pattern(kind):
-    """pgrep -f pattern of a daemon, sims included for sbd."""
+    """pgrep -f pattern of a daemon, every sbd on the host for sbd."""
     return f"^{sbin_dir()}/{kind}"
 
 
@@ -113,6 +118,21 @@ def pids(host, kind):
     """Pids of kind on host, empty list if none."""
     cp = on(host, ["pgrep", "-f", pattern(kind)], root=False)
     return [p for p in cp.stdout.split() if p.isdigit()]
+
+
+def not_up(hosts):
+    """host:unit of the lavalite-* units failed or restarting on hosts."""
+    bad = []
+    for host in hosts:
+        cp = on(host, ["systemctl", "list-units", "--no-legend", "--plain",
+                       "--state=failed,activating", "lavalite-*"],
+                root=False)
+        if cp.returncode != 0:
+            bad.append(f"{host}:systemctl rc={cp.returncode}")
+            continue
+        for line in cp.stdout.splitlines():
+            bad.append(f"{host}:{line.split()[0]}")
+    return bad
 
 
 def count_in_log(host, logs, text):
@@ -232,8 +252,14 @@ def main():
         if args.kill_every > 0 and now >= next_kill:
             kind = random.choice(kinds)
             host = random.choice(hosts[kind])
-            if host in busy or not pids(host, kind):
+            p = pids(host, kind)
+            if host in busy or not p:
                 log(f"skip kill {kind} host={host}")
+            elif kind == "sbd":
+                pid = random.choice(p)
+                cp = on(host, ["kill", "-KILL", pid])
+                log(f"kill sbd pid={pid} host={host} rc={cp.returncode}")
+                nkill += 1
             else:
                 cp = on(host, ["pkill", "-KILL", "-f", pattern(kind)])
                 log(f"kill {kind} host={host} rc={cp.returncode}")
@@ -287,14 +313,13 @@ def main():
         log(f"start {kind} host={host}")
 
     ok = True
-    down = [(k, h) for k in kinds for h in hosts[k]]
     deadline = time.monotonic() + args.settle
-    while down and time.monotonic() < deadline:
-        down = [(k, h) for k, h in down if not pids(h, k)]
-        if down:
-            time.sleep(2)
-    for kind, host in down:
-        log(f"FAIL {kind} not running on {host}")
+    bad = not_up(all_hosts)
+    while bad and time.monotonic() < deadline:
+        time.sleep(2)
+        bad = not_up(all_hosts)
+    for unit in bad:
+        log(f"FAIL {unit} not up")
         ok = False
 
     for core in new_cores(all_hosts, state_dir, since, seen):
