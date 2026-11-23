@@ -15,6 +15,7 @@ HOST_NAME   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
 myhost       8    40G    100G      A100       0,1
 End Host
 
+# Floating resources
 Begin TokenPool
 POOL_NAME  AVAILABLE
 mytoken         10

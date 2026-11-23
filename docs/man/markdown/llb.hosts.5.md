@@ -72,8 +72,8 @@ For hosts without GPUs, use **-** for both **GPU_MODEL** and
     the host has no GPUs.
 
 GPU allocation in LavaLite is currently scheduler-enforced rather than
-kernel-enforced. The master daemon tracks GPU availability, allocates
-GPU device identifiers to jobs, and the execution daemon sets the
+kernel-enforced. **mbd** tracks GPU availability, allocates
+GPU device identifiers to jobs, and **sbd** sets the
 **CUDA_VISIBLE_DEVICES** environment variable before starting the job.
 This ensures that well-behaved CUDA applications only see the GPUs
 assigned to them.
@@ -184,7 +184,7 @@ For example:
     bsub --gpus 1 --gpu-model H100 myjob.sh
 
 requests one NVIDIA H100 GPU. The scheduler allocates a free GPU
-device identifier and the execution daemon exports the allocation
+device identifier and **sbd** exports the allocation
 through the **CUDA_VISIBLE_DEVICES** environment variable before
 starting the job.
 

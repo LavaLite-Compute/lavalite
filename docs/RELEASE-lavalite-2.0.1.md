@@ -2,17 +2,22 @@
 
 ## Overview
 
-LavaLite 2.0.1 fixes the authentication of requests. In 2.0.0 the
-shared key was readable by every user, and whoever could read it could
-sign a request with any uid, or register as an execution host. 2.0.1
-closes that: users can no longer read any key, and a user can obtain
-a signed request only for their own uid.
+LavaLite 2.0.1 fixes the authentication of requests.
 
-Thanks to the E4 Computer Engineering team, who found it testing 2.0.0.
+LavaLite 2.0.0 used a shared HMAC authentication key that was accessible to ordinary users. Anyone with access to this key could construct valid authenticated requests and impersonate other users, bypassing the intended authentication mechanism.
+
+LavaLite 2.0.1 fixes this vulnerability by restricting access to authentication keys
+and introducing a privileged signing helper. Users can no longer read the keys, and
+the helper only signs requests on behalf of the calling user's UID.
 
 The release also has the fixes and the command line changes made since
 2.0.0, listed below. **The protocol and the command line changed: read
 Upgrading from 2.0.0.**
+
+## Documentation
+
+- Improved administrator documentation and architecture presentations for
+  batch jobs and persistent services.
 
 ## Security
 
@@ -38,6 +43,14 @@ other members.
 
 ## Bug Fixes
 
+- **A job lives until its last process exits.** The job script
+  exiting no longer ends the job: it stays `RUN` until the last
+  process in its cgroup exits, one that called `setsid` included, and
+  holds its slots until then. Its exit status is still the script's,
+  also across an `sbd` restart. `sbd` never kills job processes on its
+  own, no cleanup kill and no timeout: they end by themselves or by a
+  signal sent on request, `bkill` or `--terminate`, which reaches
+  every process in the cgroup, also after the script exited.
 - **A dependency lost after a reject.** A job sent back to pending
   by an `sbd` reject or a missing report could lose the job it
   depended on to compaction and stay pending forever; its second
@@ -93,6 +106,15 @@ commands, at the same time.
 6. Start `mbd` and the `sbd`s. `mbd` does not start without both
    keys, `sbd` without the daemon key; the log names the missing file.
 
+## Documentation
+
+- **Services** in the administrator guide,
+  `docs/admin/02-queue-hosts-jobs.md`: defining a service, starting,
+  listing and deleting instances, using them from the login node, the
+  namespace, veth pair and nft table `sbd` builds on the execution
+  host, the `ip` and `nft` commands to inspect them, and
+  troubleshooting.
+
 ## Testing
 
 - `docs/testing/21-auth.md`: keys, `llsign`, forged uids, another key,
@@ -101,6 +123,9 @@ commands, at the same time.
   `user_max_cpus` scenario and a START line with the time for each
   scenario.
 - `docs/testing/19-config-changes.md`: TEST-323, `USER_MAX_CPUS`.
+- `docs/testing/22-job-lifetime.md`: TEST-330..337, lingering and
+  `setsid` processes, signals after the script exited, `sbd` restart.
+  Also in `simqa.sh`.
 
 ## Known Limitations
 

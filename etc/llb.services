@@ -24,7 +24,7 @@ SERVICE_NAME = echotest
 COMMAND      = apptainer exec --bind $HOME /path/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
 PORT         = 8888
 RESTART      = always
-QUEUE        = service-2.0
+QUEUE        = service
 End Service
 
 Begin Service
@@ -34,7 +34,7 @@ COMMAND      = apptainer exec --bind $HOME /export/service_images/jupyter-base.s
 TOKEN_ENV    = JUPYTER_TOKEN
 RESTART      = always
 RUNLIMIT     = 8:00
-QUEUE = service-2.0
+QUEUE = service
 End Service
 
 Begin Service
@@ -44,5 +44,5 @@ COMMAND      = apptainer exec --bind $HOME /path/code-server.sif code-server --b
 TOKEN_ENV    = PASSWORD
 RESTART      = always
 RUNLIMIT     = 8:00
-QUEUE = service-2.0
+QUEUE = service
 End Service

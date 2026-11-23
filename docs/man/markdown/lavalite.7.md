@@ -20,11 +20,11 @@ limits, and tracks job history.
 
 LavaLite consists of two daemons:
 
-**mbd** (master batch daemon)
+**mbd** (main batch daemon)
 :   Runs on the master host. Manages the job queue, scheduling, and
     cluster state. All client commands connect to **mbd**.
 
-**sbd** (slave batch daemon)
+**sbd** (service batch daemon)
 :   Runs on each execution host. Receives jobs from **mbd**, forks and
     executes job scripts, enforces resource limits via cgroup v2, and
     reports completion back to **mbd**.
@@ -191,11 +191,11 @@ initiates the connection to **mbd** at startup and reconnects on failure.
 ## Service files
 
 **/etc/systemd/system/lavalite-mbd.service**
-:   Unit for the master batch daemon. Runs as the lavalite user.
+:   Unit for **mbd**. Runs as the lavalite user.
     Requires network and remote filesystems to be available.
 
 **/etc/systemd/system/lavalite-sbd.service**
-:   Unit for the slave batch daemon. Runs as root. Uses
+:   Unit for **sbd**. Runs as root. Uses
     **KillMode=process** (see CGROUP SETUP) so that running jobs are
     not killed when **sbd** is restarted. Uses **Delegate=yes** for
     cgroup management.

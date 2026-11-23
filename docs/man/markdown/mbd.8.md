@@ -8,7 +8,7 @@ date: 2026
 
 # NAME
 
-mbd - LavaLite master batch daemon
+mbd - LavaLite main batch daemon
 
 # SYNOPSIS
 
@@ -18,7 +18,7 @@ mbd - LavaLite master batch daemon
 
 # DESCRIPTION
 
-**mbd** is the master batch daemon. It is the central scheduler and
+**mbd** is the main batch daemon. It is the central scheduler and
 resource manager for the LavaLite cluster. It maintains the job queue,
 dispatches jobs to execution hosts, tracks job state, and manages host
 and queue configuration. Scheduler state is reconstructed from durable

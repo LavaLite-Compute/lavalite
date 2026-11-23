@@ -51,13 +51,11 @@ If `pandoc` is not found on Rocky/RHEL, enable EPEL or CRB.
 
 ## Create the LavaLite Administrator Account
 
-Create a dedicated account for running `mbd` typically `lavalite:lavalite`
-but it can be any non privileged user.
+Create a dedicated, unprivileged account to run `mbd`. The examples
+use the user and group `lavalite:lavalite`; another account may be used
+if the configuration and file permissions are adjusted accordingly.
 
-
-The master daemon (`mbd`) runs as the `lavalite` user.
-
-The slave daemon (`sbd`) runs as `root` because it manages cgroups and
+`sbd` runs as `root` because it manages cgroups and
 executes jobs on behalf of cluster users.
 
 ## Build and Install
@@ -82,7 +80,7 @@ Do not override `CFLAGS` on the `make` command line, it replaces the
 configured flags and drops `-std=gnu17`.
 
 By default LavaLite is installed under a versioned directory, for example
-`/opt/lavalite-<version>` (e.g. `/opt/lavalite-2.0.0`).
+`/opt/lavalite-<version>` (e.g. `/opt/lavalite-2.0.1`).
 
 This directory forms the root of the LavaLite installation. All
 executables, configuration files, logs, and persistent state are located
@@ -142,17 +140,18 @@ warns about other members.
 Generate the keys once, on one host:
 
 ```sh
-dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
-    > $LL_CONF_DIR/ll.auth.key
-dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
-    > $LL_CONF_DIR/ll.daemon.key
+dd if=/dev/urandom of="$LL_CONF_DIR/ll.auth.key" \
+    bs=32 count=1 status=none
+
+dd if=/dev/urandom of="$LL_CONF_DIR/ll.daemon.key" \
+    bs=32 count=1 status=none
 ```
 
-Copy them to the other hosts: `ll.auth.key` to every host,
-`ll.daemon.key` only to hosts running `mbd` or `sbd`. A submission
-host, where neither daemon runs, must not have the daemon key. All
-hosts must have the same files. `post-install.sh` sets the owner and
-mode of both.
+Copy `ll.auth.key` to every host that runs a client or daemon.
+Copy `ll.daemon.key` only to hosts running `mbd` or `sbd`; a
+client-only submission host must not have it. Each key must be
+identical on all hosts that use it. `post-install.sh` sets the
+owner and mode of both files.
 
 `mbd` does not start without both keys, `sbd` without the daemon key;
 the log names the missing file.
@@ -168,8 +167,6 @@ job's uid is unknown, or belongs to another user name than on the
 submission host, rejects the job: it returns to pending, the host is
 tainted for a while and the job runs elsewhere. The reason is in the
 `sbd` log.
-
-Copy the same file to every execution host.
 
 ## Configuration Files
 
@@ -288,8 +285,9 @@ and jobs guide.
 **This step is mandatory. The daemons require the runtime state
 directories and permissions created by this step.**
 
-A post-install script is provided in etc/post-install.sh that outlines the steps
-that must be performed after installation. The script can be run directly or the steps performed manually.
+The installed `etc/post-install.sh` sets up runtime directories and
+permissions. Run it after installation, or perform the equivalent
+steps manually.
 
 ```sh
 export LL_CONF_DIR=/opt/lavalite-<version>/etc
@@ -298,9 +296,8 @@ export LL_CONF_DIR=/opt/lavalite-<version>/etc
 
 The script performs the following operations:
 
-- chown lavalite:lavalite `var/state/mbd`
-- chown lavalite:lavalite `var/state/sbd`
-- chown lavalite:lavalite  `var/log`
+- Sets `var/state/mbd`, `var/state/sbd`, and `var/log` ownership
+  to `lavalite:lavalite`
 - Sets `bin/bhist` to `root:lavalite` mode `2755` (setgid)
 - Sets `libexec/llsign` to `root:lavalite` mode `2755` (setgid)
 - Sets `etc/ll.auth.key` to `root:lavalite` mode `0640` and
@@ -348,6 +345,7 @@ A typical installation contains:
 
 ```text
 bin/
+├── bservices
 ├── bsub
 ├── bjobs
 ├── bhist       (setgid mbd_group after post-install)
@@ -382,6 +380,7 @@ etc/
 ├── ll.conf
 ├── llb.queues
 ├── llb.hosts
+├── llb.services
 ├── ll.auth.key
 └── ll.daemon.key   (hosts running mbd or sbd only)
 ```
@@ -511,7 +510,7 @@ before starting any daemon.
 for the site to adapt:
 
 - Replace `<version>` in the paths with the installed tree, e.g.
-  `/opt/lavalite-2.0.0`.
+  `/opt/lavalite-2.0.1`.
 - `User=` in `lavalite-mbd.service` must be `LL_MBD_USER` of `ll.conf`.
 
 ```sh

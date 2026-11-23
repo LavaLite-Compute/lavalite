@@ -55,7 +55,7 @@ but alternative service management approaches are equally valid.
 
 ## Starting the Scheduler
 
-Start the master daemon:
+Start `mbd`:
 
 ```sh
 systemctl start lavalite-mbd
@@ -75,7 +75,7 @@ active (running)
 
 ## Starting Execution Hosts
 
-Start the slave daemon on each execution host:
+Start `sbd` on each execution host:
 
 ```sh
 systemctl start lavalite-sbd
@@ -95,7 +95,7 @@ active (running)
 
 ## Stopping the Scheduler
 
-Stop the master daemon:
+Stop `mbd`:
 
 ```sh
 systemctl stop lavalite-mbd
@@ -109,7 +109,7 @@ Effects:
 
 ## Stopping an Execution Host
 
-Stop an execution daemon:
+Stop `sbd` on an execution host:
 
 ```sh
 systemctl stop lavalite-sbd
@@ -123,7 +123,7 @@ Effects:
 
 ## Restarting the Scheduler
 
-Restart the master daemon:
+Restart `mbd`:
 
 ```sh
 systemctl restart lavalite-mbd
@@ -143,7 +143,7 @@ bjobs --all
 
 ## Restarting an Execution Host
 
-Restart the execution daemon:
+Restart `sbd`:
 
 ```sh
 systemctl restart lavalite-sbd

@@ -14,10 +14,26 @@
 #
 
 Begin Queue
-QUEUE_NAME  =  myqueue
+QUEUE_NAME  =  mycpuqueue
 PRIORITY    = 10
-HOSTS       =  myhosts
+HOSTS       =  mycpuhosts
 USERS =  myusers
 DESCRIPTION = General purpose CPU workloads
+End Queue
+
+Begin Queue
+QUEUE_NAME  =  myservicequeue
+PRIORITY    = 10
+HOSTS       =  myservicehosts
+USERS =  myusers
+DESCRIPTION = Service workloads
+End Queue
+
+Begin Queue
+QUEUE_NAME  =  mygpuqueue
+PRIORITY    = 10
+HOSTS       =  mygpuhosts
+USERS =  myusers
+DESCRIPTION = General purpose GPU workloads
 End Queue
 
