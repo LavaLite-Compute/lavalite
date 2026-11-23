@@ -8,7 +8,7 @@ date: 2026
 
 # NAME
 
-sbd - LavaLite service batch daemon
+sbd - LavaLite slave batch daemon
 
 # SYNOPSIS
 
@@ -16,7 +16,7 @@ sbd - LavaLite service batch daemon
 
 # DESCRIPTION
 
-**sbd** is the service batch daemon. It runs on each execution host in the
+**sbd** is the slave batch daemon. It runs on each execution host in the
 cluster, receives jobs dispatched by **mbd**, forks and executes job
 scripts, enforces resource limits via cgroup v2, performs job control
 operations such as suspend, resume, and terminate, and reports

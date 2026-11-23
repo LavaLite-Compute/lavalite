@@ -20,11 +20,11 @@ limits, and tracks job history.
 
 LavaLite consists of two daemons:
 
-**mbd** (main batch daemon)
+**mbd** (master batch daemon)
 :   Runs on the master host. Manages the job queue, scheduling, and
     cluster state. All client commands connect to **mbd**.
 
-**sbd** (service batch daemon)
+**sbd** (slave batch daemon)
 :   Runs on each execution host. Receives jobs from **mbd**, forks and
     executes job scripts, enforces resource limits via cgroup v2, and
     reports completion back to **mbd**.

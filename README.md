@@ -52,25 +52,15 @@ The objective is not to implement every possible scheduler feature, but to build
 
 # Current Status
 
-LavaLite 2.0.0 has been released.
+The latest release is **LavaLite 2.0.1**.
 
-2.0.0 adds services, long-running applications started by users on
-demand and reached over the network, each instance an ordinary job in
-its own network namespace. It also hardens the daemons for failures:
-unresponsive and failing hosts, daemons killed or stopped under load,
-configuration errors, and recovery from the manifest.
-
-See `docs/RELEASE-lavalite-2.0.0.md` for the complete release notes.
+See [LavaLite 2.0.1 release notes](docs/RELEASE-lavalite-2.0.1.md).
 
 Earlier releases:
 
-* 1.1.0: job arrays, job dependencies, a ~125x `bhist` speedup,
-  removal of the `lim` daemon. See `docs/RELEASE-lavalite-1.1.0.md`.
-* 1.0.0: the initial stable foundation, batch, multi-host and GPU
-  scheduling, durable event logging and replay, restart and recovery.
-
-The `lavalite-2.0.0`, `lavalite-1.1.0` and `lavalite-1.0.0` tags
-identify the exact source tree of each release.
+- [2.0.0](docs/RELEASE-lavalite-2.0.0.md)
+- [1.1.0](docs/RELEASE-lavalite-1.1.0.md)
+- [1.0.0](docs/RELEASE-lavalite-1.0.0.md)
 
 # Supported Platforms
 

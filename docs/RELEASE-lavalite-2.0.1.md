@@ -14,11 +14,6 @@ The release also has the fixes and the command line changes made since
 2.0.0, listed below. **The protocol and the command line changed: read
 Upgrading from 2.0.0.**
 
-## Documentation
-
-- Improved administrator documentation and architecture presentations for
-  batch jobs and persistent services.
-
 ## Security
 
 - **Two keys.** `ll.auth.key` signs client requests and is now
@@ -88,17 +83,12 @@ commands, at the same time.
 
 1. Stop `mbd` and every `sbd`.
 2. Install 2.0.1 on every host.
-3. Generate the daemon key once, on one host:
+3. Generate and install both authentication keys (`ll.auth.key` and
+   `ll.daemon.key`) as described in the
+   [installation guide](admin/01-install.md).
 
-   ```sh
-   dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 \
-       > $LL_CONF_DIR/ll.daemon.key
-   ```
-
-   Copy it to every host running `mbd` or `sbd`, not to submission
-   hosts. The existing `ll.auth.key` can stay; to be safe, generate a
-   new one too, since every user could read the old one, and copy it
-   to every host.
+   Replace the existing 2.0.0 authentication key, since it was
+   accessible to ordinary users.
 4. Run `post-install.sh` as root on every host. It sets `llsign`
    setgid and the owner and mode of both keys.
 5. Replace `--sched_timer`, `--op_timer`, `--resend_timer` with the
@@ -107,6 +97,9 @@ commands, at the same time.
    keys, `sbd` without the daemon key; the log names the missing file.
 
 ## Documentation
+
+- Improved administrator documentation and architecture presentations for
+  batch jobs and persistent services.
 
 - **Services** in the administrator guide,
   `docs/admin/02-queue-hosts-jobs.md`: defining a service, starting,
